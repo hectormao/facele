@@ -1,0 +1,12 @@
+webServer:
+   port: 8080
+   path: /cargarFactura
+   method: POST
+mongoConfig:
+   host: 172.17.0.3
+   port: 27017
+   database: facele
+envioDianQueue:
+   name: enviarFacturaQ 
+notificacionQueue:
+   name: notificarFacturaQ

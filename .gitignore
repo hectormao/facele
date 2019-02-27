@@ -1,0 +1,9 @@
+Gopkg.lock
+Gopkg.toml
+cmd/cargaFacturaSrv/cargaFacturaSrv
+cmd/cargaFacturaSrv/cargaFacturaSrv.debug
+cmd/envioFacturaDianSrv/envioFacturaDianSrv
+cmd/envioFacturaDianSrv/envioFacturaDianSrv.debug
+cmd/notificarFacturaSrv/notificarFacturaSrv
+cmd/notificarFacturaSrv/notificarFacturaSrv.debug
+vendor/
