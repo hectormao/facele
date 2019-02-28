@@ -9,7 +9,9 @@ import (
 
 	"encoding/xml"
 
-	"compress/gzip"
+	"archive/zip"
+
+	"fmt"
 
 	"github.com/hectormao/facele/pkg/ent"
 	"github.com/hectormao/facele/pkg/repo"
@@ -110,21 +112,35 @@ func construirDocumentoElectronico(facturaXML []byte) ([]byte, error) {
 		return nil, err
 	}
 
+	data = []byte(xml.Header + string(data))
+
 	log.Printf("XML: %s", data)
 
 	var buffer bytes.Buffer
 
-	gz := gzip.NewWriter(&buffer)
-	_, err = gz.Write(data)
+	zipWriter := zip.NewWriter(&buffer)
+
+	nombreArchivo := getNombreArchivo()
+
+	zipFile, err := zipWriter.Create(nombreArchivo)
 	if err != nil {
 		return nil, err
 	}
-	if err = gz.Flush(); err != nil {
-		return nil, err
-	}
-	if err = gz.Close(); err != nil {
+
+	_, err = zipFile.Write(data)
+	if err != nil {
 		return nil, err
 	}
 
-	return buffer.Bytes(), nil
+	if err = zipWriter.Close(); err != nil {
+		return nil, err
+	}
+
+	bufferBytes := buffer.Bytes()
+
+	return bufferBytes, nil
+}
+
+func getNombreArchivo() string {
+	return fmt.Sprintf("face_f%010s%010d.xml", "901005166", 81)
 }
