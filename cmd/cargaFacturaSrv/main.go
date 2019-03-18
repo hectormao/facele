@@ -8,13 +8,19 @@ import (
 
 	"github.com/hectormao/facele/internal/trns"
 	"github.com/hectormao/facele/pkg/cfg"
+
+	"os"
 )
 
 func main() {
-	configPath := flag.String("config-file", "config/default-config.yaml", "config file path")
+	configPath := flag.String("config-file", "../../config/default-config.yaml", "config file path")
 	flag.Parse()
 
 	log.Printf("Config Path: %v", *configPath)
+
+	dir, _ := os.Getwd()
+
+	log.Printf("Directorio Actual: %v", dir)
 
 	config, err := cfg.CargarConfig(*configPath)
 

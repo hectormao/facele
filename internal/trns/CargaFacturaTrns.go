@@ -19,7 +19,7 @@ import (
 )
 
 type cargaFacturaRequest struct {
-	Cliente       string `json:"cliente"`
+	Empresa       string `json:"empresa"`
 	NombreArchivo string `json:"nombre_archivo"`
 	Contenido     []byte `json:"contenido"`
 }
@@ -32,7 +32,7 @@ type cargaFacturaResponse struct {
 func crearCargarFacturaEndpoint(cargaFacturaSrv srv.CargaFacturaSrv) endpoint.Endpoint {
 	return func(_ context.Context, request interface{}) (interface{}, error) {
 		req := request.(cargaFacturaRequest)
-		id, err := cargaFacturaSrv.Cargar(req.Cliente, req.NombreArchivo, req.Contenido)
+		id, err := cargaFacturaSrv.Cargar(req.Empresa, req.NombreArchivo, req.Contenido)
 		if err != nil {
 			return cargaFacturaResponse{"", err.Error()}, err
 		}
@@ -44,8 +44,8 @@ func decodeCargaFacturaRequest(_ context.Context, r *http.Request) (interface{},
 
 	r.ParseMultipartForm(32 << 20)
 
-	cliente := r.Header.Get("cliente")
-	log.Printf("%v", cliente)
+	empresa := r.Header.Get("empresa")
+	log.Printf("%v", empresa)
 
 	archivo, handler, err := r.FormFile("archivo")
 	if err != nil {
@@ -61,7 +61,7 @@ func decodeCargaFacturaRequest(_ context.Context, r *http.Request) (interface{},
 	}
 
 	request := cargaFacturaRequest{
-		Cliente:       cliente,
+		Empresa:       empresa,
 		NombreArchivo: handler.Filename,
 		Contenido:     data,
 	}

@@ -7,6 +7,7 @@ import (
 
 	"bytes"
 
+	"encoding/base64"
 	"encoding/xml"
 
 	"archive/zip"
@@ -20,6 +21,10 @@ import (
 	"github.com/hectormao/facele/pkg/trns"
 	soap "github.com/hooklift/gowsdl/soap"
 	"github.com/satori/go.uuid"
+
+	"io/ioutil"
+
+	"encoding/json"
 )
 
 type EnvioFacturaDianSrvImpl struct {
@@ -34,9 +39,11 @@ func (srv EnvioFacturaDianSrvImpl) IniciarConsumidorCola() error {
 		return err
 	}
 	for factura := range facturasAEnviar {
-		log.Printf("Enviando factura: %v", factura.Id)
+		log.Printf("Enviando factura: %v", factura["_id"])
 
-		documentoElectronico, err := construirDocumentoElectronico(factura.Xml)
+		idEmpresa := factura["_empresa"].(string)
+
+		documentoElectronico, err := construirDocumentoElectronico(factura)
 
 		if err != nil {
 			log.Printf("Error al construir documento electronico: %v", err)
@@ -69,22 +76,29 @@ func (srv EnvioFacturaDianSrvImpl) IniciarConsumidorCola() error {
 
 		respuesta, err := service.EnvioFacturaElectronica(&request)
 		if err != nil {
-			log.Printf("%v", err)
+			log.Printf("Error del web service: %v", err)
 			continue
 		}
+
+		facturaJson, err := json.Marshal(factura)
+		if err != nil {
+			log.Printf("Error del al pasar a json: %v", err)
+			continue
+		}
+
 		if respuesta.Response != 200 {
 			log.Printf("Error envio factura DIAN: %v - %v", respuesta.Response, respuesta.Comments)
-			srv.ColaNotificacionRepo.AgregarEnColaNotificacion(factura.Id, nil)
+			srv.ColaNotificacionRepo.AgregarEnColaNotificacion(facturaJson)
 		} else {
-			log.Printf("Enviando a cola de notificacion: %v", factura.Id)
-			srv.ColaNotificacionRepo.AgregarEnColaNotificacion(factura.Id, nil)
+			log.Printf("Enviando a cola de notificacion: %v", factura)
+			srv.ColaNotificacionRepo.AgregarEnColaNotificacion(facturaJson)
 		}
 
 		log.Printf("Respuesta Dian: %s", respuesta)
 
-		updateData := trns.AcuseReciboApdateData(*respuesta)
+		updateData := trns.AcuseReciboUpdateData(*respuesta)
 
-		err = srv.Repo.ActualizarFactura(factura.Id, updateData)
+		err = srv.Repo.ActualizarFactura(factura["_id"].(string), updateData)
 		if err != nil {
 			log.Printf("Error actualizando respuesta DIAN: %v", err)
 			continue
@@ -93,9 +107,9 @@ func (srv EnvioFacturaDianSrvImpl) IniciarConsumidorCola() error {
 	return nil
 }
 
-func construirDocumentoElectronico(facturaXML []byte) ([]byte, error) {
+func construirDocumentoElectronico(factura map[string]interface{}) ([]byte, error) {
 
-	invoice, err := ent.NewInvoice()
+	invoice, err := ent.NewInvoice(factura)
 	if err != nil {
 		return nil, err
 	}
@@ -116,6 +130,19 @@ func construirDocumentoElectronico(facturaXML []byte) ([]byte, error) {
 
 	log.Printf("XML: %s", data)
 
+	zipBytes, err := crearZip(data)
+	if err != nil {
+		return nil, err
+	}
+
+	result := toBase64(zipBytes)
+
+	log.Printf("Result %s", result)
+
+	return []byte(result), nil
+}
+
+func crearZip(data []byte) ([]byte, error) {
 	var buffer bytes.Buffer
 
 	zipWriter := zip.NewWriter(&buffer)
@@ -136,9 +163,23 @@ func construirDocumentoElectronico(facturaXML []byte) ([]byte, error) {
 		return nil, err
 	}
 
-	bufferBytes := buffer.Bytes()
+	ioutil.WriteFile("/home/hectormao/antes.zip", buffer.Bytes(), 0644)
 
-	return bufferBytes, nil
+	return buffer.Bytes(), nil
+}
+
+func toBase64(data []byte) string {
+
+	log.Printf("toBase64 data: %d", len(data))
+
+	result := base64.StdEncoding.EncodeToString(data)
+
+	buffer, _ := base64.StdEncoding.DecodeString(result)
+
+	ioutil.WriteFile("/home/hectormao/base64.txt", []byte(result), 0644)
+	ioutil.WriteFile("/home/hectormao/base64.zip", buffer, 0644)
+
+	return result
 }
 
 func getNombreArchivo() string {

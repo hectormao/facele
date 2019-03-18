@@ -1,16 +1,11 @@
 package repo
 
-type FacturaCola struct {
-	Id  string `json:"id"`
-	Xml []byte `json:"xml"`
-}
-
 type ColaEnvioRepo interface {
-	AgregarEnColaEnvioFacturas(objectId string, facturaXML []byte) error
-	GetFacturasAEnviar() (<-chan FacturaCola, error)
+	AgregarEnColaEnvioFacturas(factura []byte) error
+	GetFacturasAEnviar() (<-chan map[string]interface{}, error)
 }
 
 type ColaNotificacionRepo interface {
-	AgregarEnColaNotificacion(objectId string, documentoElectronico []byte) error
-	GetFacturasANotificar() (<-chan FacturaCola, error)
+	AgregarEnColaNotificacion(factura []byte) error
+	GetFacturasANotificar() (<-chan map[string]interface{}, error)
 }

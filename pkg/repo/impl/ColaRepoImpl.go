@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"log"
 
-	repo "github.com/hectormao/facele/pkg/repo"
 	"github.com/streadway/amqp"
 )
 
@@ -23,24 +22,24 @@ type ColaRepoImpl struct {
 	queueNotificacion amqp.Queue
 }
 
-func (cola ColaRepoImpl) AgregarEnColaEnvioFacturas(objectId string, facturaXML []byte) error {
-	return cola.agregarEnCola(ColaEnvio, objectId, facturaXML)
+func (cola ColaRepoImpl) AgregarEnColaEnvioFacturas(factura []byte) error {
+	return cola.agregarEnCola(ColaEnvio, factura)
 }
 
-func (cola ColaRepoImpl) GetFacturasAEnviar() (<-chan repo.FacturaCola, error) {
+func (cola ColaRepoImpl) GetFacturasAEnviar() (<-chan map[string]interface{}, error) {
 	return cola.getFacturas(ColaEnvio)
 }
 
-func (cola ColaRepoImpl) AgregarEnColaNotificacion(objectId string, documentoElectronico []byte) error {
-	return cola.agregarEnCola(ColaNotificacion, objectId, documentoElectronico)
+func (cola ColaRepoImpl) AgregarEnColaNotificacion(factura []byte) error {
+	return cola.agregarEnCola(ColaNotificacion, factura)
 }
 
-func (cola ColaRepoImpl) GetFacturasANotificar() (<-chan repo.FacturaCola, error) {
+func (cola ColaRepoImpl) GetFacturasANotificar() (<-chan map[string]interface{}, error) {
 	return cola.getFacturas(ColaNotificacion)
 }
 
-func (cola ColaRepoImpl) agregarEnCola(nombreCola string, objectId string, xml []byte) error {
-	log.Printf("Agregando a la cola %s %s id objeto: %s xml: %s", nombreCola, objectId, xml)
+func (cola ColaRepoImpl) agregarEnCola(nombreCola string, factura []byte) error {
+	log.Printf("Agregando a la cola %s factura: %s", nombreCola, factura)
 	if cola.channel == nil {
 		err := cola.conectar()
 		if err != nil {
@@ -48,19 +47,6 @@ func (cola ColaRepoImpl) agregarEnCola(nombreCola string, objectId string, xml [
 		}
 	}
 
-	body := repo.FacturaCola{
-		Id:  objectId,
-		Xml: xml,
-	}
-
-	log.Printf("body %v", body)
-
-	jsonValue, err := json.Marshal(body)
-	if err != nil {
-		return errors.New(fmt.Sprintf("Error al parsear json %v", err))
-	}
-
-	log.Printf("Agregando a la cola %s de facturas %s", nombreCola, jsonValue)
 	cola.channel.Publish(
 		"",
 		nombreCola,
@@ -68,14 +54,14 @@ func (cola ColaRepoImpl) agregarEnCola(nombreCola string, objectId string, xml [
 		false,
 		amqp.Publishing{
 			ContentType: "application/json",
-			Body:        jsonValue,
+			Body:        factura,
 		},
 	)
 
 	return nil
 }
 
-func (cola ColaRepoImpl) getFacturas(nombreCola string) (<-chan repo.FacturaCola, error) {
+func (cola ColaRepoImpl) getFacturas(nombreCola string) (<-chan map[string]interface{}, error) {
 	log.Printf("Creando consumidor de la cola %v", nombreCola)
 	if cola.channel == nil {
 		err := cola.conectar()
@@ -84,7 +70,7 @@ func (cola ColaRepoImpl) getFacturas(nombreCola string) (<-chan repo.FacturaCola
 		}
 	}
 
-	facturaChannel := make(chan repo.FacturaCola)
+	facturaChannel := make(chan map[string]interface{})
 
 	msgs, err := cola.channel.Consume(
 		nombreCola,
@@ -103,7 +89,7 @@ func (cola ColaRepoImpl) getFacturas(nombreCola string) (<-chan repo.FacturaCola
 	go func() {
 		for msg := range msgs {
 			data := msg.Body
-			var factura repo.FacturaCola
+			var factura map[string]interface{}
 			jsonErr := json.Unmarshal(data, &factura)
 			if jsonErr != nil {
 				log.Printf("%v", jsonErr)

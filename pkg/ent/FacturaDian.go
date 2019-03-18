@@ -2,6 +2,7 @@ package ent
 
 import (
 	"encoding/xml"
+	"errors"
 	"fmt"
 	"time"
 )
@@ -23,6 +24,8 @@ const (
 	InvoiceTimeFormat  string = "15:04:00"
 )
 
+var NoResolucionesError error = errors.New("Resolucion Activa no existente")
+
 func (invoice *InvoiceType) AgregarExtension(extension interface{}) {
 
 	newExtension := UBLExtensionType{
@@ -35,24 +38,36 @@ func (invoice *InvoiceType) AgregarExtension(extension interface{}) {
 		append(invoice.UBLExtensions.UBLExtensions, newExtension)
 }
 
-func NewInvoice() (*InvoiceType, error) {
+func NewInvoice(factura map[string]interface{}) (*InvoiceType, error) {
+
+	resoluciones := factura["_empresa"].(map[string]interface{})["resoluciones"].([]map[string]interface{})
+	var resolucion map[string]interface{}
+	for _, res := range resoluciones {
+		if res["si_activo"].(bool) {
+			resolucion = res
+			break
+		}
+	}
+	if resolucion == nil {
+		return nil, NoResolucionesError
+	}
 
 	ublExtension := UBLExtensionType{
 		ExtensionContent: ExtensionContentType{
 			Extension: DianExtensionType{
 				InvoiceControl: InvoiceControlType{
-					InvoiceAuthorization: "18762010165197",
+					InvoiceAuthorization: resolucion["numero"].(string),
 					AuthorizationPeriod: AuthorizationPeriodType{
-						StartDate: invoiceDate{InvoiceDateFormat, time.Date(2018, 9, 10, 0, 0, 0, 0, time.UTC)},
-						EndDate:   invoiceDate{InvoiceDateFormat, time.Date(2020, 3, 10, 0, 0, 0, 0, time.UTC)},
+						StartDate: invoiceDate{InvoiceDateFormat, resolucion["vigencia"].(map[string]interface{})["desde"].(time.Time)},
+						EndDate:   invoiceDate{InvoiceDateFormat, resolucion["vigencia"].(map[string]interface{})["hasta"].(time.Time)},
 					},
 					AuthorizedInvoices: AuthorizedInvoicesType{
 						Prefix: PrefixType{
 							Type: DianTextType,
-							Data: "FV",
+							Data: resolucion["prefijo"].(string),
 						},
-						From: 1,
-						To:   1000,
+						From: resolucion["rango"].(map[string]interface{})["inferior"].(int),
+						To:   resolucion["rango"].(map[string]interface{})["superior"].(int),
 					},
 				},
 				InvoiceSource: InvoiceSourceType{
