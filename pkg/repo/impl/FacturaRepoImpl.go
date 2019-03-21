@@ -19,7 +19,7 @@ type FacturaRepoImpl struct {
 	db     *mongo.Database
 }
 
-func (repo FacturaRepoImpl) AlmacenarFactura(factura map[string]interface{}) (string, error) {
+func (repo FacturaRepoImpl) AlmacenarFactura(factura ent.FacturaType) (string, error) {
 	log.Printf("Almacenando factura %v", factura)
 
 	if repo.db == nil {

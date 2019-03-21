@@ -3,10 +3,11 @@ package impl
 import (
 	"errors"
 
+	"github.com/hectormao/facele/pkg/ent"
 	"github.com/hectormao/facele/pkg/repo"
-	"github.com/hectormao/facele/pkg/trns"
 
 	"encoding/json"
+	"encoding/xml"
 
 	"log"
 )
@@ -46,24 +47,22 @@ func (srv CargaFacturaSrvImpl) Cargar(documentoEmpresa string, nombreArchivo str
 
 	log.Printf("Se obtiene la empresa: %v", empresa)
 
-	factura, err := trns.XMLToMap(content)
-	if err != nil {
-		return "", err
+	factura := ent.FacturaType{}
+	xmlErr := xml.Unmarshal(content, &factura)
+
+	if xmlErr != nil {
+		return "", xmlErr
 	}
 
-	factura["_empresa_id"] = empresa.ObjectId.Hex()
+	factura.EmpresaID = empresa.ObjectId.Hex()
 
 	id, err := srv.Repo.AlmacenarFactura(factura)
 	if err != nil {
 		return "", err
 	}
 
-	factura["_id"] = id
-	empresaMap, err := trns.StructToMap(empresa)
-	if err != nil {
-		return "", err
-	}
-	factura["_empresa"] = empresaMap
+	factura.Empresa = *empresa
+	factura.ObjectId = id
 
 	facturaJson, err := json.Marshal(factura)
 	if err != nil {

@@ -6,7 +6,7 @@ import (
 )
 
 type FacturaRepo interface {
-	AlmacenarFactura(factura map[string]interface{}) (string, error)
+	AlmacenarFactura(factura ent.FacturaType) (string, error)
 	ActualizarFactura(id string, data map[string]interface{}) error
 	GetEmpresa(numeroDocumento string) (*ent.EmpresaType, error)
 	GetEmpresaPorId(id string) (*ent.EmpresaType, error)

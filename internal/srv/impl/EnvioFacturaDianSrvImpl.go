@@ -42,7 +42,7 @@ func (srv EnvioFacturaDianSrvImpl) IniciarConsumidorCola() error {
 		log.Printf("Enviando factura: %v", factura["_id"])
 
 		idEmpresa := factura["_empresa"].(string)
-
+		log.Printf("idEmpresa: %v", idEmpresa)
 		documentoElectronico, err := construirDocumentoElectronico(factura)
 
 		if err != nil {
