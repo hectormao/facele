@@ -28,7 +28,7 @@ func (srv NotificarFacturaSrvImpl) IniciarConsumidorCola() error {
 		return errors.New(fmt.Sprintf("Error al crear consumidor: %v", err))
 	}
 	for facturaANotificar := range facturasANotificar {
-		id := facturaANotificar["_id"].(string)
+		id := facturaANotificar.ObjectId
 		log.Printf("Recibiendo factura: %v", id)
 		pdfBytes, err := srv.crearPdf(id)
 		if err != nil {

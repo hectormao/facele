@@ -18,10 +18,6 @@ func main() {
 
 	log.Printf("Config Path: %v", *configPath)
 
-	dir, _ := os.Getwd()
-
-	log.Printf("Directorio Actual: %v", dir)
-
 	config, err := cfg.CargarConfig(*configPath)
 
 	if err != nil {

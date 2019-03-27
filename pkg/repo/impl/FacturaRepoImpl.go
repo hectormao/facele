@@ -9,6 +9,7 @@ import (
 
 	"github.com/hectormao/facele/pkg/ent"
 
+	"github.com/hectormao/facele/pkg/cfg"
 	"github.com/mongodb/mongo-go-driver/bson"
 	"github.com/mongodb/mongo-go-driver/bson/objectid"
 	"github.com/mongodb/mongo-go-driver/mongo"
@@ -17,6 +18,7 @@ import (
 type FacturaRepoImpl struct {
 	client *mongo.Client
 	db     *mongo.Database
+	Config cfg.FaceleConfigType
 }
 
 func (repo FacturaRepoImpl) AlmacenarFactura(factura ent.FacturaType) (string, error) {

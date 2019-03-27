@@ -26,6 +26,7 @@ type FacturaType struct {
 	EmpresaID     string            `xml:"-" bson:"_empresa_id" json:"_empresa_id"`
 	Empresa       EmpresaType       `xml:"-" bson:"-" json:"_empresa"`
 	ObjectId      string            `xml:"-" bson:"-" json:"_id"`
+	Cufe          string            `xml:"-" bson:"-" json:"_cufe"`
 }
 
 type CabezaFacturaType struct {

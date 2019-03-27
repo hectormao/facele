@@ -1,9 +1,12 @@
 package ent
 
 import (
+	"bytes"
+	"crypto/sha1"
 	"encoding/xml"
 	"errors"
 	"fmt"
+	"strconv"
 	"time"
 )
 
@@ -22,6 +25,8 @@ const (
 	DianSchemeURI      string = "http://www.dian.gov.co/contratos/facturaelectronica/v1/InvoiceType"
 	InvoiceDateFormat  string = "2006-01-02"
 	InvoiceTimeFormat  string = "15:04:00"
+	AgencyID           string = "195"
+	AgencyName         string = "CO, DIAN (Direccion de Impuestos y Aduanas Nacionales)"
 )
 
 var NoResolucionesError error = errors.New("Resolucion Activa no existente")
@@ -38,13 +43,13 @@ func (invoice *InvoiceType) AgregarExtension(extension interface{}) {
 		append(invoice.UBLExtensions.UBLExtensions, newExtension)
 }
 
-func NewInvoice(factura map[string]interface{}) (*InvoiceType, error) {
+func NewInvoice(factura FacturaType, vendedor EmpresaType) (*InvoiceType, error) {
 
-	resoluciones := factura["_empresa"].(map[string]interface{})["resoluciones"].([]map[string]interface{})
-	var resolucion map[string]interface{}
+	resoluciones := factura.Empresa.Resoluciones
+	var resolucion *ResolucionFacturacionType
 	for _, res := range resoluciones {
-		if res["si_activo"].(bool) {
-			resolucion = res
+		if res.SiActivo {
+			resolucion = &res
 			break
 		}
 	}
@@ -52,22 +57,24 @@ func NewInvoice(factura map[string]interface{}) (*InvoiceType, error) {
 		return nil, NoResolucionesError
 	}
 
+	totalImpuesto := calcularTotalImpuestos(factura)
+
 	ublExtension := UBLExtensionType{
 		ExtensionContent: ExtensionContentType{
 			Extension: DianExtensionType{
 				InvoiceControl: InvoiceControlType{
-					InvoiceAuthorization: resolucion["numero"].(string),
+					InvoiceAuthorization: resolucion.Numero,
 					AuthorizationPeriod: AuthorizationPeriodType{
-						StartDate: invoiceDate{InvoiceDateFormat, resolucion["vigencia"].(map[string]interface{})["desde"].(time.Time)},
-						EndDate:   invoiceDate{InvoiceDateFormat, resolucion["vigencia"].(map[string]interface{})["hasta"].(time.Time)},
+						StartDate: invoiceDate{InvoiceDateFormat, resolucion.Vigencia.Desde},
+						EndDate:   invoiceDate{InvoiceDateFormat, resolucion.Vigencia.Hasta},
 					},
 					AuthorizedInvoices: AuthorizedInvoicesType{
 						Prefix: PrefixType{
 							Type: DianTextType,
-							Data: resolucion["prefijo"].(string),
+							Data: resolucion.Prefijo,
 						},
-						From: resolucion["rango"].(map[string]interface{})["inferior"].(int),
-						To:   resolucion["rango"].(map[string]interface{})["superior"].(int),
+						From: resolucion.Rango.Inferior,
+						To:   resolucion.Rango.Superior,
 					},
 				},
 				InvoiceSource: InvoiceSourceType{
@@ -80,20 +87,20 @@ func NewInvoice(factura map[string]interface{}) (*InvoiceType, error) {
 				},
 				SoftwareProvider: SoftwareProviderType{
 					ProviderID: newProviderID(
-						"195",
-						"CO, DIAN (Direccion de Impuestos y Aduanas Nacionales)",
-						"860028580",
+						AgencyID,
+						AgencyName,
+						factura.Empresa.NumeroDocumento,
 					),
 					SoftwareID: newSoftwareID(
-						"195",
-						"CO, DIAN (Direccion de Impuestos y Aduanas Nacionales)",
-						"7095ba87-e8f1-4f66-be7b-ffedc0a6722f",
+						AgencyID,
+						AgencyName,
+						factura.Empresa.SoftwareFacturacion.Id,
 					),
 				},
 				SoftwareSecurityCode: newSoftwareSecurityCode(
-					"195",
-					"CO, DIAN (Direccion de Impuestos y Aduanas Nacionales)",
-					"7e411f86923bed1e95b154686320d47c549f9c364452e276e2c579fa415e7e9346c9ef6a051fb8a28915476d0a5f3021",
+					AgencyID,
+					AgencyName,
+					resolucion.ClaveTecnica,
 				),
 			},
 		},
@@ -114,58 +121,68 @@ func NewInvoice(factura map[string]interface{}) (*InvoiceType, error) {
 		},
 		UBLVersionID: "2.0",
 		ProfileID:    "1.0",
-		ID:           "FV81",
+		ID:           resolucion.Prefijo + strconv.Itoa(factura.CabezaFactura.Consecutivo),
 		UUID: newUUID(
-			"195",
-			"CO, DIAN (Direccion de Impuestos y Aduanas Nacionales)",
-			"c56269b7dc3db40dc7d3a46d2715bfaf82200d7d",
+			AgencyID,
+			AgencyName,
+			generarCodigoCUFE(*resolucion, factura),
 		),
-		IssueDate: invoiceDate{InvoiceDateFormat, time.Date(2018, 11, 23, 0, 0, 0, 0, time.UTC)},
-		IssueTime: invoiceDate{InvoiceTimeFormat, time.Date(2018, 11, 23, 0, 0, 0, 0, time.UTC)},
+		IssueDate: invoiceDate{InvoiceDateFormat, factura.CabezaFactura.FechaFacturacion},
+		IssueTime: invoiceDate{InvoiceTimeFormat, factura.CabezaFactura.FechaFacturacion},
 		InvoiceTypeCode: newInvoiceTypeCode(
-			"195",
-			"CO, DIAN (Direccion de Impuestos y Aduanas Nacionales)",
+			AgencyID,
+			AgencyName,
 			"1",
 		),
-		Note:                 "",
-		DocumentCurrencyCode: "COP",
+		Note:                 factura.CabezaFactura.Observaciones,
+		DocumentCurrencyCode: factura.CabezaFactura.Moneda,
+		InvoicePeriod: InvoicePeriodType{
+			DurationMeasure: DurationMeasureType{
+				UnitCode: "DAY",
+				Data: calcularDiasVencimiento(
+					factura.CabezaFactura.FechaFacturacion,
+					factura.CabezaFactura.FechaVencimiento,
+				),
+			},
+			Description: factura.CabezaFactura.FechaVencimiento.Format(InvoiceDateFormat),
+		},
 		AccountingSupplierParty: AccountingSupplierPartyType{
 			AdditionalAccountID: "1",
 			Party: PartyType{
 				PartyIdentification: PartyIdentificationType{
 					ID: newPartyID(
 						"31",
-						"195",
-						"CO, DIAN (Direccion de Impuestos y Aduanas Nacionales)",
-						"800194208",
+						AgencyID,
+						AgencyName,
+						vendedor.NumeroDocumento,
 					),
 				},
 				PartyName: PartyNameType{
-					Name: "GESTION ENERGETICA S.A E.S.P",
+					Name: vendedor.RazonSocial,
 				},
 				PhysicalLocation: PhysicalLocationType{
 					Address: AddressType{
-						Department:          "CALDAS",
+						Department:          vendedor.Ubicacion.Departamento,
 						CitySubdivisionName: "",
-						CityName:            "MANIZALES",
+						CityName:            vendedor.Ubicacion.Municipio,
 						AddressLine: AddressLineType{
 							Line: []LineType{
 								LineType{
-									Data: "CR 23 64 B 33 ED S XXI BRR LAURELES",
+									Data: vendedor.Ubicacion.Direccion,
 								},
 							},
 						},
 						Country: CountryType{
-							IdentificationCode: "CO",
+							IdentificationCode: vendedor.Ubicacion.Pais,
 						},
 					},
 				},
 				PartyTaxScheme: PartyTaxSchemeType{
-					TaxLevelCode: "2",
+					TaxLevelCode: strconv.Itoa(factura.CabezaFactura.TipoCompra),
 					TaxScheme:    "",
 				},
 				PartyLegalEntity: PartyLegalEntityType{
-					RegistrationName: "GESTION ENERGETICA S.A E.S.P",
+					RegistrationName: vendedor.RazonSocial,
 				},
 			},
 		},
@@ -175,28 +192,28 @@ func NewInvoice(factura map[string]interface{}) (*InvoiceType, error) {
 				PartyIdentification: PartyIdentificationType{
 					ID: newPartyID(
 						"31",
-						"195",
-						"CO, DIAN (Direccion de Impuestos y Aduanas Nacionales)",
-						"811034077",
+						AgencyID,
+						AgencyName,
+						factura.CabezaFactura.Nit,
 					),
 				},
 				PartyName: PartyNameType{
-					Name: "EMPRESA DE ENERGIA ELECTRICA DE SERVICIOS PUBLICOS E.S.P DEL MUNICIPIO DE MURINDO",
+					Name: factura.CabezaFactura.RazonSocial,
 				},
 				PhysicalLocation: PhysicalLocationType{
 					Address: AddressType{
-						Department:          "ANTIOQUIA",
+						Department:          factura.CabezaFactura.Departamento,
 						CitySubdivisionName: "",
-						CityName:            "MURINDO",
+						CityName:            factura.CabezaFactura.Ciudad,
 						AddressLine: AddressLineType{
 							Line: []LineType{
 								LineType{
-									Data: "CALLE PRIMERA CABECERA MUNICIPAL",
+									Data: factura.CabezaFactura.Direccion,
 								},
 							},
 						},
 						Country: CountryType{
-							IdentificationCode: "CO",
+							IdentificationCode: factura.CabezaFactura.Pais,
 						},
 					},
 				},
@@ -205,74 +222,166 @@ func NewInvoice(factura map[string]interface{}) (*InvoiceType, error) {
 					TaxScheme:    "",
 				},
 				PartyLegalEntity: PartyLegalEntityType{
-					RegistrationName: "EMPRESA DE ENERGIA ELECTRICA DE SERVICIOS PUBLICOS E.S.P DEL MUNICIPIO DE MURINDO",
+					RegistrationName: factura.CabezaFactura.RazonSocial,
 				},
 			},
 		},
 		TaxTotal: TaxTotalType{
 			TaxAmount: newTaxAmount(
-				"COP",
-				0.0,
+				factura.CabezaFactura.Moneda,
+				totalImpuesto,
 			),
 			TaxEvidenceIndicator: false,
-			TaxSubtotal: TaxSubtotalType{
-				TaxableAmount: newTaxableAmount(
-					"COP",
-					0.0,
-				),
-				TaxAmount: newTaxAmount(
-					"COP",
-					0.0,
-				),
-				Percent: 19.0,
-				TaxCategory: TaxCategoryType{
-					TaxScheme: TaxSchemeType{
-						ID: "01",
-					},
-				},
-			},
+			TaxSubtotal: generarSubtotalImpuestos(
+				factura.CabezaFactura.ListaImpuestos.ImpuestosCabeza,
+				factura.CabezaFactura.Moneda,
+			),
 		},
 		LegalMonetaryTotal: LegalMonetaryTotalType{
 			LineExtensionAmount: newLineExtensionAmount(
-				"COP",
-				18135006.00,
+				factura.CabezaFactura.Moneda,
+				factura.CabezaFactura.TotalImporteBruto,
 			),
 			TaxExclusiveAmount: newTaxExclusiveAmount(
-				"COP",
+				factura.CabezaFactura.Moneda,
 				0.0,
 			),
 			PayableAmount: newPayableAmount(
-				"COP",
-				18135006.00,
+				factura.CabezaFactura.Moneda,
+				factura.CabezaFactura.TotalFactura,
 			),
 		},
-		InvoiceLine: []InvoiceLineType{
-			InvoiceLineType{
-				ID:               "13",
-				InvoicedQuantity: 1,
-				LineExtensionAmount: newLineExtensionAmount(
-					"COP",
-					12564553.00,
-				),
-				Item: ItemType{
-					Description: "REEMBOLSABLES POR CARGOS Y COSTOS ASOCIADOS A LA FRONTERA COMERCIAL RIOSUCIO - CAUCHERAS",
-				},
-				Price: PriceType{
-					PriceAmount: newPriceAmountType(
-						"COP",
-						12564553.00,
-					),
-				},
-			},
-		},
+		InvoiceLine: getInvoiceLine(factura),
 	}
 
 	return &invoice, nil
 }
 
+func generarSubtotalImpuestos(impuestos []ImpuestosCabezaType, moneda string) []TaxSubtotalType {
+
+	result := make([]TaxSubtotalType, len(impuestos))
+
+	for idx, impuesto := range impuestos {
+		result[idx] = TaxSubtotalType{
+			TaxableAmount: newTaxableAmount(
+				moneda,
+				impuesto.BaseImponible,
+			),
+			TaxAmount: newTaxAmount(
+				moneda,
+				impuesto.ValorImpuestoRetencion,
+			),
+			Percent: impuesto.Porcentaje,
+			TaxCategory: TaxCategoryType{
+				TaxScheme: TaxSchemeType{
+					ID: impuesto.CodigoImpuestoRetencion,
+				},
+			},
+		}
+	}
+
+	return result
+
+}
+
+func generarCodigoCUFE(resolucion ResolucionFacturacionType, factura FacturaType) string {
+
+	fechaFormato := "20060102150405"
+
+	mapImpuestos := getValoresImpuestos(factura.CabezaFactura.ListaImpuestos.ImpuestosCabeza)
+
+	sha := sha1.New()
+
+	numeroFactura := resolucion.Prefijo + strconv.Itoa(factura.CabezaFactura.Consecutivo)
+	fechaFactura := factura.CabezaFactura.FechaFacturacion.Format(fechaFormato)
+	valorFactura := fmt.Sprintf("%.2f", factura.CabezaFactura.TotalImporteBruto)
+	codImp1 := "01"
+	valImp1 := fmt.Sprintf("%.2f", mapImpuestos["01"])
+	codImp2 := "02"
+	valImp2 := fmt.Sprintf("%.2f", mapImpuestos["02"])
+	codImp3 := "03"
+	valImp3 := fmt.Sprintf("%.2f", mapImpuestos["03"])
+	valImp := fmt.Sprintf("%.2f", factura.CabezaFactura.TotalFactura)
+	nitOFE := factura.CabezaFactura.NumeroIdentificacion
+	tipAdq := strconv.Itoa(factura.CabezaFactura.TipoPersona)
+	numAdq := factura.CabezaFactura.Nit
+	ciTec := resolucion.ClaveTecnica
+
+	var buffer bytes.Buffer
+	buffer.WriteString(numeroFactura)
+	buffer.WriteString(fechaFactura)
+	buffer.WriteString(valorFactura)
+	buffer.WriteString(codImp1)
+	buffer.WriteString(valImp1)
+	buffer.WriteString(codImp2)
+	buffer.WriteString(valImp2)
+	buffer.WriteString(codImp3)
+	buffer.WriteString(valImp3)
+	buffer.WriteString(valImp)
+	buffer.WriteString(nitOFE)
+	buffer.WriteString(tipAdq)
+	buffer.WriteString(numAdq)
+	buffer.WriteString(ciTec)
+
+	return fmt.Sprintf("%X", sha.Sum(buffer.Bytes()))
+}
+
+func getValoresImpuestos(impuestos []ImpuestosCabezaType) map[string]float64 {
+	result := make(map[string]float64)
+
+	for _, impuesto := range impuestos {
+		result[impuesto.CodigoImpuestoRetencion] = impuesto.ValorImpuestoRetencion
+	}
+
+	return result
+}
+
+func calcularDiasVencimiento(inicio time.Time, fin time.Time) int64 {
+	diaInicio := inicioDia(inicio)
+	diaFin := inicioDia(fin)
+
+	return int64(diaFin.Sub(diaInicio).Hours() / 24)
+}
+
+func inicioDia(t time.Time) time.Time {
+	anio, mes, dia := t.Date()
+	return time.Date(anio, mes, dia, 0, 0, 0, 0, t.Location())
+}
+
+func getInvoiceLine(factura FacturaType) []InvoiceLineType {
+
+	lines := factura.CabezaFactura.ListaDetalles.Detalles
+
+	result := make([]InvoiceLineType, len(lines))
+
+	for idx, line := range lines {
+		result[idx] = InvoiceLineType{
+			ID:                  line.CodigoProducto,
+			InvoicedQuantity:    line.Cantidad,
+			LineExtensionAmount: newLineExtensionAmount(factura.CabezaFactura.Moneda, line.PrecioSinImpuestos),
+			Item: ItemType{
+				Description: line.Descripcion,
+			},
+			Price: PriceType{
+				PriceAmount: newPriceAmountType(factura.CabezaFactura.Moneda, line.ValorUnitario),
+			},
+		}
+	}
+
+	return result
+}
+
+func calcularTotalImpuestos(factura FacturaType) float64 {
+	total := 0.0
+	for _, impuesto := range factura.CabezaFactura.ListaImpuestos.ImpuestosCabeza {
+		total += impuesto.ValorImpuestoRetencion
+	}
+	return total
+}
+
 func newPriceAmountType(
 	currencyID string,
-	data float32) PriceAmountType {
+	data float64) PriceAmountType {
 	v := PriceAmountType{}
 	v.CurrencyID = currencyID
 	v.Data = data
@@ -281,7 +390,7 @@ func newPriceAmountType(
 
 func newPayableAmount(
 	currencyID string,
-	data float32) PayableAmountType {
+	data float64) PayableAmountType {
 	v := PayableAmountType{}
 	v.CurrencyID = currencyID
 	v.Data = data
@@ -290,7 +399,7 @@ func newPayableAmount(
 
 func newTaxExclusiveAmount(
 	currencyID string,
-	data float32) TaxExclusiveAmountType {
+	data float64) TaxExclusiveAmountType {
 	v := TaxExclusiveAmountType{}
 	v.CurrencyID = currencyID
 	v.Data = data
@@ -299,7 +408,7 @@ func newTaxExclusiveAmount(
 
 func newLineExtensionAmount(
 	currencyID string,
-	data float32) LineExtensionAmountType {
+	data float64) LineExtensionAmountType {
 	v := LineExtensionAmountType{}
 	v.CurrencyID = currencyID
 	v.Data = data
@@ -309,7 +418,7 @@ func newLineExtensionAmount(
 
 func newTaxableAmount(
 	currencyID string,
-	data float32) TaxableAmountType {
+	data float64) TaxableAmountType {
 	v := TaxableAmountType{}
 	v.CurrencyID = currencyID
 	v.Data = data
@@ -318,7 +427,7 @@ func newTaxableAmount(
 
 func newTaxAmount(
 	currencyID string,
-	data float32) TaxAmountType {
+	data float64) TaxAmountType {
 	v := TaxAmountType{}
 	v.CurrencyID = currencyID
 	v.Data = data
@@ -427,6 +536,7 @@ type InvoiceType struct {
 	InvoiceTypeCode         InvoiceTypeCodeType         `xml:",omitempty"`
 	Note                    string                      `xml:"cbc:Note"`
 	DocumentCurrencyCode    string                      `xml:"cbc:DocumentCurrencyCode"`
+	InvoicePeriod           InvoicePeriodType           `xml:",omitempty"`
 	AccountingSupplierParty AccountingSupplierPartyType `xml:",omitempty"`
 	AccountingCustomerParty AccountingCustomerPartyType `xml:",omitempty"`
 	TaxTotal                TaxTotalType                `xml:",omitempty"`
@@ -473,8 +583,8 @@ type AuthorizationPeriodType struct {
 type AuthorizedInvoicesType struct {
 	XMLName xml.Name   `xml:"sts:AuthorizedInvoices"`
 	Prefix  PrefixType `xml:",omiteempty"`
-	From    int        `xml:"sts:From"`
-	To      int        `xml:"sts:To"`
+	From    int64      `xml:"sts:From"`
+	To      int64      `xml:"sts:To"`
 }
 
 type PrefixType struct {
@@ -503,6 +613,18 @@ type IdentificationCodeType struct {
 type InvoiceTypeCodeType struct {
 	XMLName xml.Name `xml:"cbc:InvoiceTypeCode"`
 	CodeType
+}
+
+type InvoicePeriodType struct {
+	XMLName         xml.Name            `xml:"cac:InvoicePeriod"`
+	DurationMeasure DurationMeasureType `xml:",omiteempty"`
+	Description     string              `xml:"cbc:Description,omiteempty"`
+}
+
+type DurationMeasureType struct {
+	XMLName  xml.Name `xml:"cbc:DurationMeasure"`
+	UnitCode string   `xml:"unitCode,attr"`
+	Data     int64    `xml:",chardata"`
 }
 
 type SoftwareProviderType struct {
@@ -615,15 +737,15 @@ type PartyLegalEntityType struct {
 }
 
 type TaxTotalType struct {
-	XMLName              xml.Name        `xml:"fe:TaxTotal"`
-	TaxAmount            TaxAmountType   `xml:",omitempty"`
-	TaxEvidenceIndicator bool            `xml:"cbc:TaxEvidenceIndicator"`
-	TaxSubtotal          TaxSubtotalType `xml:",omitempty"`
+	XMLName              xml.Name          `xml:"fe:TaxTotal"`
+	TaxAmount            TaxAmountType     `xml:",omitempty"`
+	TaxEvidenceIndicator bool              `xml:"cbc:TaxEvidenceIndicator"`
+	TaxSubtotal          []TaxSubtotalType `xml:",omitempty"`
 }
 
 type AmountType struct {
 	CurrencyID string  `xml:"currencyID,attr"`
-	Data       float32 `xml:",chardata"`
+	Data       float64 `xml:",chardata"`
 }
 
 func (a AmountType) MarshalXML(e *xml.Encoder, start xml.StartElement) error {

@@ -6,7 +6,6 @@ import (
 	"github.com/hectormao/facele/pkg/ent"
 	"github.com/hectormao/facele/pkg/repo"
 
-	"encoding/json"
 	"encoding/xml"
 
 	"log"
@@ -64,12 +63,7 @@ func (srv CargaFacturaSrvImpl) Cargar(documentoEmpresa string, nombreArchivo str
 	factura.Empresa = *empresa
 	factura.ObjectId = id
 
-	facturaJson, err := json.Marshal(factura)
-	if err != nil {
-		return "", err
-	}
-
-	err = srv.ColaRepo.AgregarEnColaEnvioFacturas(facturaJson)
+	err = srv.ColaRepo.AgregarEnColaEnvioFacturas(factura)
 	if err != nil {
 		return "", err
 	}

@@ -7,6 +7,8 @@ import (
 
 	"bytes"
 
+	"strconv"
+
 	"encoding/base64"
 	"encoding/xml"
 
@@ -14,6 +16,7 @@ import (
 
 	"fmt"
 
+	"github.com/hectormao/facele/pkg/cfg"
 	"github.com/hectormao/facele/pkg/ent"
 	"github.com/hectormao/facele/pkg/repo"
 	facturaSoap "github.com/hectormao/facele/pkg/soap"
@@ -23,14 +26,13 @@ import (
 	"github.com/satori/go.uuid"
 
 	"io/ioutil"
-
-	"encoding/json"
 )
 
 type EnvioFacturaDianSrvImpl struct {
 	Repo                 repo.FacturaRepo
 	ColaEnvioRepo        repo.ColaEnvioRepo
 	ColaNotificacionRepo repo.ColaNotificacionRepo
+	Config               cfg.FaceleConfigType
 }
 
 func (srv EnvioFacturaDianSrvImpl) IniciarConsumidorCola() error {
@@ -39,11 +41,11 @@ func (srv EnvioFacturaDianSrvImpl) IniciarConsumidorCola() error {
 		return err
 	}
 	for factura := range facturasAEnviar {
-		log.Printf("Enviando factura: %v", factura["_id"])
+		log.Printf("Enviando factura: %v", factura.ObjectId)
 
-		idEmpresa := factura["_empresa"].(string)
+		idEmpresa := factura.EmpresaID
 		log.Printf("idEmpresa: %v", idEmpresa)
-		documentoElectronico, err := construirDocumentoElectronico(factura)
+		documentoElectronico, cufe, err := srv.construirDocumentoElectronico(factura)
 
 		if err != nil {
 			log.Printf("Error al construir documento electronico: %v", err)
@@ -51,12 +53,18 @@ func (srv EnvioFacturaDianSrvImpl) IniciarConsumidorCola() error {
 		}
 
 		client := soap.NewClient(
-			"https://facturaelectronica.dian.gov.co/habilitacion/B2BIntegrationEngine/FacturaElectronica",
+			srv.Config.WebServiceDian.Url,
 		)
 
 		u1 := uuid.NewV4()
 
-		securityHeader := facturaSoap.NewWSSSecurityHeader("e34c1826-251c-45a0-bd71-4139fd6db716", "Auditoria9", u1.String(), time.Now(), "")
+		securityHeader := facturaSoap.NewWSSSecurityHeader(
+			factura.Empresa.SoftwareFacturacion.Id,
+			factura.Empresa.SoftwareFacturacion.Password,
+			u1.String(),
+			time.Now(),
+			"",
+		)
 
 		log.Printf("Security Header: %v", securityHeader)
 
@@ -64,8 +72,10 @@ func (srv EnvioFacturaDianSrvImpl) IniciarConsumidorCola() error {
 
 		service := facturaSoap.NewFacturaElectronicaPortName(client)
 
-		var nit facturaSoap.NitType = "123456789"
-		var numeroFactura facturaSoap.InvoiceNumberType = "321"
+		var nit facturaSoap.NitType = facturaSoap.NitType(factura.CabezaFactura.NumeroIdentificacion)
+		var numeroFactura facturaSoap.InvoiceNumberType = facturaSoap.InvoiceNumberType(
+			strconv.Itoa(factura.CabezaFactura.Consecutivo),
+		)
 
 		request := facturaSoap.EnvioFacturaElectronica{
 			NIT:           &nit,
@@ -80,25 +90,21 @@ func (srv EnvioFacturaDianSrvImpl) IniciarConsumidorCola() error {
 			continue
 		}
 
-		facturaJson, err := json.Marshal(factura)
-		if err != nil {
-			log.Printf("Error del al pasar a json: %v", err)
-			continue
-		}
+		factura.Cufe = cufe
 
 		if respuesta.Response != 200 {
 			log.Printf("Error envio factura DIAN: %v - %v", respuesta.Response, respuesta.Comments)
-			srv.ColaNotificacionRepo.AgregarEnColaNotificacion(facturaJson)
+			srv.ColaNotificacionRepo.AgregarEnColaNotificacion(factura)
 		} else {
 			log.Printf("Enviando a cola de notificacion: %v", factura)
-			srv.ColaNotificacionRepo.AgregarEnColaNotificacion(facturaJson)
+			srv.ColaNotificacionRepo.AgregarEnColaNotificacion(factura)
 		}
 
 		log.Printf("Respuesta Dian: %s", respuesta)
 
 		updateData := trns.AcuseReciboUpdateData(*respuesta)
 
-		err = srv.Repo.ActualizarFactura(factura["_id"].(string), updateData)
+		err = srv.Repo.ActualizarFactura(factura.ObjectId, updateData)
 		if err != nil {
 			log.Printf("Error actualizando respuesta DIAN: %v", err)
 			continue
@@ -107,47 +113,56 @@ func (srv EnvioFacturaDianSrvImpl) IniciarConsumidorCola() error {
 	return nil
 }
 
-func construirDocumentoElectronico(factura map[string]interface{}) ([]byte, error) {
+func (srv EnvioFacturaDianSrvImpl) construirDocumentoElectronico(factura ent.FacturaType) ([]byte, string, error) {
 
-	invoice, err := ent.NewInvoice(factura)
+	vendedor, err := srv.Repo.GetEmpresa(factura.CabezaFactura.NumeroIdentificacion)
 	if err != nil {
-		return nil, err
+		return nil, "", err
+	}
+
+	invoice, err := ent.NewInvoice(factura, *vendedor)
+	if err != nil {
+		return nil, "", err
 	}
 
 	sign, err := ssl.FirmarXML(invoice)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
 	invoice.AgregarExtension(sign)
 
 	data, err := xml.Marshal(invoice)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
 	data = []byte(xml.Header + string(data))
 
 	log.Printf("XML: %s", data)
 
-	zipBytes, err := crearZip(data)
+	zipBytes, err := crearZip(
+		data,
+		factura.CabezaFactura.NumeroIdentificacion,
+		strconv.Itoa(factura.CabezaFactura.Consecutivo),
+	)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
 	result := toBase64(zipBytes)
 
 	log.Printf("Result %s", result)
 
-	return []byte(result), nil
+	return []byte(result), invoice.UUID.Data, nil
 }
 
-func crearZip(data []byte) ([]byte, error) {
+func crearZip(data []byte, nitResponsable string, idFactura string) ([]byte, error) {
 	var buffer bytes.Buffer
 
 	zipWriter := zip.NewWriter(&buffer)
 
-	nombreArchivo := getNombreArchivo()
+	nombreArchivo := getNombreArchivo(nitResponsable, idFactura)
 
 	zipFile, err := zipWriter.Create(nombreArchivo)
 	if err != nil {
@@ -174,14 +189,9 @@ func toBase64(data []byte) string {
 
 	result := base64.StdEncoding.EncodeToString(data)
 
-	buffer, _ := base64.StdEncoding.DecodeString(result)
-
-	ioutil.WriteFile("/home/hectormao/base64.txt", []byte(result), 0644)
-	ioutil.WriteFile("/home/hectormao/base64.zip", buffer, 0644)
-
 	return result
 }
 
-func getNombreArchivo() string {
-	return fmt.Sprintf("face_f%010s%010d.xml", "901005166", 81)
+func getNombreArchivo(nitResponsable string, idFactura string) string {
+	return fmt.Sprintf("face_f%010s%010s.xml", nitResponsable, idFactura)
 }

@@ -7,10 +7,15 @@ import (
 )
 
 type FaceleConfigType struct {
-	WebServer         WebServerType   `yaml:"webServer"`
-	MongoConfig       MongoConfigType `yaml:"mongoConfig"`
-	EnvioDianQueue    QueueType       `yaml:"envioDianQueue"`
-	NotificacionQueue QueueType       `yaml:"notificacionQueue"`
+	WebServer         WebServerType     `yaml:"webServer"`
+	MongoConfig       MongoConfigType   `yaml:"mongoConfig"`
+	WebServiceDian    WebServerDianType `yaml:"webServiceDian"`
+	EnvioDianQueue    QueueType         `yaml:"envioDianQueue"`
+	NotificacionQueue QueueType         `yaml:"notificacionQueue"`
+}
+
+type WebServerDianType struct {
+	Url string `yaml:"url"`
 }
 
 type WebServerType struct {
