@@ -44,7 +44,7 @@ func decodeCargaFacturaRequest(_ context.Context, r *http.Request) (interface{},
 
 	r.ParseMultipartForm(32 << 20)
 
-	empresa := r.Header.Get("empresa")
+	empresa := r.Header.Get("X-Empresa")
 	log.Printf("%v", empresa)
 
 	archivo, handler, err := r.FormFile("archivo")

@@ -3,7 +3,7 @@ webServer:
    path: /cargarFactura
    method: POST
 webServiceDian:
-	url: https://facturaelectronica.dian.gov.co/habilitacion/B2BIntegrationEngine/FacturaElectronica
+   url: https://facturaelectronica.dian.gov.co/habilitacion/B2BIntegrationEngine/FacturaElectronica
 mongoConfig:
    host: 172.17.0.3
    port: 27017

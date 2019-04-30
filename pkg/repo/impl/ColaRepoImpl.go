@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/hectormao/facele/pkg/cfg"
 	"github.com/hectormao/facele/pkg/ent"
 	"github.com/streadway/amqp"
 )

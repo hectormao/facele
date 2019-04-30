@@ -57,7 +57,8 @@ func NewInvoice(factura FacturaType, vendedor EmpresaType) (*InvoiceType, error)
 		return nil, NoResolucionesError
 	}
 
-	totalImpuesto := calcularTotalImpuestos(factura)
+	impuestosFactura := getImpuestosFactura(factura)
+	totalImpuesto := calcularTotalImpuestos(impuestosFactura)
 
 	ublExtension := UBLExtensionType{
 		ExtensionContent: ExtensionContentType{
@@ -125,7 +126,7 @@ func NewInvoice(factura FacturaType, vendedor EmpresaType) (*InvoiceType, error)
 		UUID: newUUID(
 			AgencyID,
 			AgencyName,
-			generarCodigoCUFE(*resolucion, factura),
+			generarCodigoCUFE(*resolucion, factura, impuestosFactura),
 		),
 		IssueDate: invoiceDate{InvoiceDateFormat, factura.CabezaFactura.FechaFacturacion},
 		IssueTime: invoiceDate{InvoiceTimeFormat, factura.CabezaFactura.FechaFacturacion},
@@ -144,10 +145,10 @@ func NewInvoice(factura FacturaType, vendedor EmpresaType) (*InvoiceType, error)
 					factura.CabezaFactura.FechaVencimiento,
 				),
 			},
-			Description: factura.CabezaFactura.FechaVencimiento.Format(InvoiceDateFormat),
+			Description: "Fecha Vencimiento: " + factura.CabezaFactura.FechaVencimiento.Format(InvoiceDateFormat),
 		},
 		AccountingSupplierParty: AccountingSupplierPartyType{
-			AdditionalAccountID: "1",
+			AdditionalAccountID: vendedor.Tipo,
 			Party: PartyType{
 				PartyIdentification: PartyIdentificationType{
 					ID: newPartyID(
@@ -187,7 +188,7 @@ func NewInvoice(factura FacturaType, vendedor EmpresaType) (*InvoiceType, error)
 			},
 		},
 		AccountingCustomerParty: AccountingCustomerPartyType{
-			AdditionalAccountID: "1",
+			AdditionalAccountID: strconv.Itoa(factura.CabezaFactura.TipoPersona),
 			Party: PartyType{
 				PartyIdentification: PartyIdentificationType{
 					ID: newPartyID(
@@ -218,7 +219,7 @@ func NewInvoice(factura FacturaType, vendedor EmpresaType) (*InvoiceType, error)
 					},
 				},
 				PartyTaxScheme: PartyTaxSchemeType{
-					TaxLevelCode: "0",
+					TaxLevelCode: strconv.Itoa(factura.CabezaFactura.TipoCompra),
 					TaxScheme:    "",
 				},
 				PartyLegalEntity: PartyLegalEntityType{
@@ -233,7 +234,7 @@ func NewInvoice(factura FacturaType, vendedor EmpresaType) (*InvoiceType, error)
 			),
 			TaxEvidenceIndicator: false,
 			TaxSubtotal: generarSubtotalImpuestos(
-				factura.CabezaFactura.ListaImpuestos.ImpuestosCabeza,
+				impuestosFactura,
 				factura.CabezaFactura.Moneda,
 			),
 		},
@@ -257,11 +258,11 @@ func NewInvoice(factura FacturaType, vendedor EmpresaType) (*InvoiceType, error)
 	return &invoice, nil
 }
 
-func generarSubtotalImpuestos(impuestos []ImpuestosCabezaType, moneda string) []TaxSubtotalType {
+func generarSubtotalImpuestos(impuestos map[string]*ImpuestosCabezaType, moneda string) []TaxSubtotalType {
 
 	result := make([]TaxSubtotalType, len(impuestos))
-
-	for idx, impuesto := range impuestos {
+	idx := 0
+	for _, impuesto := range impuestos {
 		result[idx] = TaxSubtotalType{
 			TaxableAmount: newTaxableAmount(
 				moneda,
@@ -278,29 +279,48 @@ func generarSubtotalImpuestos(impuestos []ImpuestosCabezaType, moneda string) []
 				},
 			},
 		}
+		idx++
 	}
 
 	return result
 
 }
 
-func generarCodigoCUFE(resolucion ResolucionFacturacionType, factura FacturaType) string {
+func generarCodigoCUFE(resolucion ResolucionFacturacionType, factura FacturaType, impuestos map[string]*ImpuestosCabezaType) string {
 
 	fechaFormato := "20060102150405"
 
-	mapImpuestos := getValoresImpuestos(factura.CabezaFactura.ListaImpuestos.ImpuestosCabeza)
-
 	sha := sha1.New()
+
+	impuesto01 := impuestos["01"]
+	impuesto02 := impuestos["02"]
+	impuesto03 := impuestos["03"]
+
+	valorImpuesto01 := 0.0
+	valorImpuesto02 := 0.0
+	valorImpuesto03 := 0.0
+
+	if impuesto01 != nil {
+		valorImpuesto01 = impuesto01.ValorImpuestoRetencion
+	}
+
+	if impuesto02 != nil {
+		valorImpuesto02 = impuesto02.ValorImpuestoRetencion
+	}
+
+	if impuesto03 != nil {
+		valorImpuesto03 = impuesto03.ValorImpuestoRetencion
+	}
 
 	numeroFactura := resolucion.Prefijo + strconv.Itoa(factura.CabezaFactura.Consecutivo)
 	fechaFactura := factura.CabezaFactura.FechaFacturacion.Format(fechaFormato)
 	valorFactura := fmt.Sprintf("%.2f", factura.CabezaFactura.TotalImporteBruto)
 	codImp1 := "01"
-	valImp1 := fmt.Sprintf("%.2f", mapImpuestos["01"])
+	valImp1 := fmt.Sprintf("%.2f", valorImpuesto01)
 	codImp2 := "02"
-	valImp2 := fmt.Sprintf("%.2f", mapImpuestos["02"])
+	valImp2 := fmt.Sprintf("%.2f", valorImpuesto02)
 	codImp3 := "03"
-	valImp3 := fmt.Sprintf("%.2f", mapImpuestos["03"])
+	valImp3 := fmt.Sprintf("%.2f", valorImpuesto03)
 	valImp := fmt.Sprintf("%.2f", factura.CabezaFactura.TotalFactura)
 	nitOFE := factura.CabezaFactura.NumeroIdentificacion
 	tipAdq := strconv.Itoa(factura.CabezaFactura.TipoPersona)
@@ -371,9 +391,31 @@ func getInvoiceLine(factura FacturaType) []InvoiceLineType {
 	return result
 }
 
-func calcularTotalImpuestos(factura FacturaType) float64 {
+func getImpuestosFactura(factura FacturaType) map[string]*ImpuestosCabezaType {
+	result := make(map[string]*ImpuestosCabezaType)
+	for _, detalle := range factura.CabezaFactura.ListaDetalles.Detalles {
+		for _, impuesto := range detalle.ListaImpuestos.Detalles {
+			impuestoGeneral, ok := result[impuesto.CodigoImpuestoRetencion]
+			if ok {
+				impuestoGeneral.BaseImponible += impuesto.BaseImponible
+				impuestoGeneral.ValorImpuestoRetencion += impuesto.ValorImpuestoRetencion
+			} else {
+				result[impuesto.CodigoImpuestoRetencion] = &ImpuestosCabezaType{
+					BaseImponible:           impuesto.BaseImponible,
+					CodigoImpuestoRetencion: impuesto.CodigoImpuestoRetencion,
+					Porcentaje:              impuesto.Porcentaje,
+					ValorImpuestoRetencion:  impuesto.ValorImpuestoRetencion,
+				}
+			}
+		}
+	}
+
+	return result
+}
+
+func calcularTotalImpuestos(impuestos map[string]*ImpuestosCabezaType) float64 {
 	total := 0.0
-	for _, impuesto := range factura.CabezaFactura.ListaImpuestos.ImpuestosCabeza {
+	for _, impuesto := range impuestos {
 		total += impuesto.ValorImpuestoRetencion
 	}
 	return total

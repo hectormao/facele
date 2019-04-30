@@ -8,8 +8,6 @@ import (
 
 	"github.com/hectormao/facele/internal/trns"
 	"github.com/hectormao/facele/pkg/cfg"
-
-	"os"
 )
 
 func main() {

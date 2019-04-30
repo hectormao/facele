@@ -27,7 +27,7 @@ func main() {
 	log.Printf("Config: %v", config)
 
 	envioFacturaSrv := getServicio(config)
-	err := envioFacturaSrv.IniciarConsumidorCola()
+	err = envioFacturaSrv.IniciarConsumidorCola()
 	log.Printf("%v", err)
 }
 
