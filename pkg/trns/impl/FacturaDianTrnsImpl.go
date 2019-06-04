@@ -140,93 +140,93 @@ func (trns FacturaDianTrnsImpl) newInvoice(factura ent.FacturaType, vendedor ent
 						CityName:             "",
 						CountrySubentity:     factura.CabezaFactura.Ciudad,
 						CountrySubentityCode: "",
-						AddressLine: AddressLineType{
-							Line: []LineType{
-								LineType{
+						AddressLine: ent.AddressLineType{
+							Line: []ent.LineType{
+								ent.LineType{
 									Data: vendedor.Ubicacion.Direccion,
 								},
 							},
 						},
-						Country: CountryType{
+						Country: ent.CountryType{
 							IdentificationCode: vendedor.Ubicacion.Pais,
 							Name:               "",
 						},
 					},
 				},
-				PartyTaxScheme: PartyTaxSchemeType{
+				PartyTaxScheme: ent.PartyTaxSchemeType{
 					RegistrationName: vendedor.RazonSocial,
 				},
-				PartyLegalEntity: PartyLegalEntityType{
+				PartyLegalEntity: ent.PartyLegalEntityType{
 					RegistrationName: vendedor.RazonSocial,
 				},
 			},
 		},
-		AccountingCustomerParty: AccountingCustomerPartyType{
+		AccountingCustomerParty: ent.AccountingCustomerPartyType{
 			AdditionalAccountID: strconv.Itoa(factura.CabezaFactura.TipoPersona),
-			Party: PartyType{
-				PartyIdentification: PartyIdentificationType{
-					ID: newPartyID(
+			Party: ent.PartyType{
+				PartyIdentification: ent.PartyIdentificationType{
+					ID: trns.newPartyID(
 						"31",
-						AgencyID,
-						AgencyName,
+						ent.AgencyID,
+						ent.AgencyName,
 						factura.CabezaFactura.Nit,
 					),
 				},
-				PartyName: PartyNameType{
+				PartyName: ent.PartyNameType{
 					Name: factura.CabezaFactura.RazonSocial,
 				},
-				PhysicalLocation: PhysicalLocationType{
-					Address: AddressType{
+				PhysicalLocation: ent.PhysicalLocationType{
+					Address: ent.AddressType{
 						Department:          factura.CabezaFactura.Departamento,
 						CitySubdivisionName: "",
 						CityName:            factura.CabezaFactura.Ciudad,
-						AddressLine: AddressLineType{
-							Line: []LineType{
-								LineType{
+						AddressLine: ent.AddressLineType{
+							Line: []ent.LineType{
+								ent.LineType{
 									Data: factura.CabezaFactura.Direccion,
 								},
 							},
 						},
-						Country: CountryType{
+						Country: ent.CountryType{
 							IdentificationCode: factura.CabezaFactura.Pais,
 						},
 					},
 				},
-				PartyTaxScheme: PartyTaxSchemeType{
+				PartyTaxScheme: ent.PartyTaxSchemeType{
 					TaxLevelCode: strconv.Itoa(factura.CabezaFactura.TipoCompra),
 					TaxScheme:    "",
 				},
-				PartyLegalEntity: PartyLegalEntityType{
+				PartyLegalEntity: ent.PartyLegalEntityType{
 					RegistrationName: factura.CabezaFactura.RazonSocial,
 				},
 			},
 		},
-		TaxTotal: TaxTotalType{
-			TaxAmount: newTaxAmount(
+		TaxTotal: ent.TaxTotalType{
+			TaxAmount: trns.newTaxAmount(
 				factura.CabezaFactura.Moneda,
 				totalImpuesto,
 			),
 			TaxEvidenceIndicator: false,
-			TaxSubtotal: generarSubtotalImpuestos(
+			TaxSubtotal: trns.generarSubtotalImpuestos(
 				impuestosFactura,
 				factura.CabezaFactura.Moneda,
 			),
 		},
-		LegalMonetaryTotal: LegalMonetaryTotalType{
-			LineExtensionAmount: newLineExtensionAmount(
+		LegalMonetaryTotal: ent.LegalMonetaryTotalType{
+			LineExtensionAmount: trns.newLineExtensionAmount(
 				factura.CabezaFactura.Moneda,
 				factura.CabezaFactura.TotalImporteBruto,
 			),
-			TaxExclusiveAmount: newTaxExclusiveAmount(
+			TaxExclusiveAmount: trns.newTaxExclusiveAmount(
 				factura.CabezaFactura.Moneda,
 				0.0,
 			),
-			PayableAmount: newPayableAmount(
+			PayableAmount: trns.newPayableAmount(
 				factura.CabezaFactura.Moneda,
 				factura.CabezaFactura.TotalFactura,
 			),
 		},
-		InvoiceLine: getInvoiceLine(factura),
+		InvoiceLine: trns.getInvoiceLine(factura),
 	}
 
 	return invoice, nil
