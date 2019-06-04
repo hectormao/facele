@@ -68,14 +68,14 @@ func (trns FacturaDianTrnsImpl) newInvoice(factura ent.FacturaType, vendedor ent
 						factura.Empresa.NumeroDocumento,
 					),
 					SoftwareID: trns.newSoftwareID(
-						AgencyID,
-						AgencyName,
+						ent.AgencyID,
+						ent.AgencyName,
 						factura.Empresa.SoftwareFacturacion.Id,
 					),
 				},
-				SoftwareSecurityCode: newSoftwareSecurityCode(
-					AgencyID,
-					AgencyName,
+				SoftwareSecurityCode: trns.newSoftwareSecurityCode(
+					ent.AgencyID,
+					ent.AgencyName,
 					resolucion.ClaveTecnica,
 				),
 			},
@@ -100,42 +100,42 @@ func (trns FacturaDianTrnsImpl) newInvoice(factura ent.FacturaType, vendedor ent
 		ProfileID:          ent.Profile,
 		ProfileExecutionID: ent.ProfileExecution,
 		ID:                 "BC100201",
-		UUID: newUUID(
+		UUID: trns.newUUID(
 			"2",
 			"CUFE-SHA256",
-			generarCodigoCUFE(resolucion, factura, impuestosFactura),
+			trns.generarCodigoCUFE(resolucion, factura, impuestosFactura),
 		),
-		IssueDate:            invoiceDate{InvoiceDateFormat, factura.CabezaFactura.FechaFacturacion},
-		IssueTime:            invoiceDate{InvoiceTimeFormat, factura.CabezaFactura.FechaFacturacion},
+		IssueDate:            ent.InvoiceDate{ent.InvoiceDateFormat, factura.CabezaFactura.FechaFacturacion},
+		IssueTime:            ent.InvoiceDate{ent.InvoiceTimeFormat, factura.CabezaFactura.FechaFacturacion},
 		InvoiceTypeCode:      strconv.Itoa(factura.CabezaFactura.TipoDocumento),
 		Note:                 factura.CabezaFactura.Observaciones,
-		TaxPointDate:         invoiceDate(InvoiceDateFormat, factura.CabezaFactura.FechaVencimiento),
+		TaxPointDate:         ent.InvoiceDate{ent.InvoiceDateFormat, factura.CabezaFactura.FechaVencimiento},
 		DocumentCurrencyCode: factura.CabezaFactura.Moneda,
 		LineCountNumeric:     len(factura.CabezaFactura.ListaDetalles.Detalles),
-		OrderReference: ReferenceType{
+		OrderReference: ent.ReferenceType{
 			ID: idFactura,
 		},
-		DespatchDocumentReference: ReferenceType{
+		DespatchDocumentReference: ent.ReferenceType{
 			ID: idFactura,
 		},
-		ReceiptDocumentReference: ReferenceType{
+		ReceiptDocumentReference: ent.ReferenceType{
 			ID: idFactura,
 		},
-		AdditionalDocumentReference: AdditionalDocumentReferenceType{
+		AdditionalDocumentReference: ent.AdditionalDocumentReferenceType{
 			ID:               idFactura,
 			DocumentTypeCode: strconv.Itoa(factura.CabezaFactura.TipoDocumento),
 		},
-		AccountingSupplierParty: AccountingSupplierPartyType{
-			AdditionalAccountID: IDType{
-				SchemeAgencyID: AgencyID,
+		AccountingSupplierParty: ent.AccountingSupplierPartyType{
+			AdditionalAccountID: ent.IDType{
+				SchemeAgencyID: ent.AgencyID,
 				Data:           vendedor.Tipo,
 			},
-			Party: PartyType{
-				PartyName: NameType{
+			Party: ent.PartyType{
+				PartyName: ent.NameType{
 					Name: vendedor.RazonSocial,
 				},
-				PhysicalLocation: PhysicalLocationType{
-					Address: AddressType{
+				PhysicalLocation: ent.PhysicalLocationType{
+					Address: ent.AddressType{
 						ID:                   "",
 						CityName:             "",
 						CountrySubentity:     factura.CabezaFactura.Ciudad,
