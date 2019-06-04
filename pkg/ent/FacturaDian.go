@@ -1,35 +1,37 @@
 package ent
 
 import (
-	"bytes"
-	"crypto/sha1"
 	"encoding/xml"
-	"errors"
 	"fmt"
-	"strconv"
 	"time"
 )
 
 const (
-	DianNSFe           string = "http://www.dian.gov.co/contratos/facturaelectronica/v1"
+	DianNS             string = "urn:oasis:names:specification:ubl:schema:xsd:Invoice-2"
 	DianNSCac          string = "urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2"
 	DianNSCbc          string = "urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2"
 	DianNSExt          string = "urn:oasis:names:specification:ubl:schema:xsd:CommonExtensionComponents-2"
 	DianNSNs6          string = "http://www.w3.org/2000/09/xmldsig#"
 	DianNSNs8          string = "http://uri.etsi.org/01903/v1.3.2#"
-	DianNSSts          string = "http://www.dian.gov.co/contratos/facturaelectronica/v1/Structures"
+	DianNSSts          string = "dian:gov:co:facturaelectronica:Structures-2-1"
+	DianNSXades        string = "http://uri.etsi.org/01903/v1.3.2#"
+	DianNSXades141     string = "http://uri.etsi.org/01903/v1.4.1#"
 	DianNSXsi          string = "http://www.w3.org/2001/XMLSchema-instance"
-	DianSchemaLocation string = "http://www.dian.gov.co/contratos/facturaelectronica/v1 xsd/DIAN_UBL.xsd urn:un:unece:uncefact:data:specification:UnqualifiedDataTypesSchemaModule:2 xsd/UnqualifiedDataTypeSchemaModule-2.0.xsd urn:oasis:names:specification:ubl:schema:xsd:QualifiedDatatypes-2 xsd/UBL-QualifiedDatatypes-2.0.xsd"
+	DianSchemaLocation string = "urn:oasis:names:specification:ubl:schema:xsd:Invoice-2     http://docs.oasis-open.org/ubl/os-UBL-2.1/xsd/maindoc/UBL-Invoice-2.1.xsd"
 	DianTextType       string = "cbc:TextType"
-	CountrySchemeURI   string = "urn:oasis:names:specification:ubl:codelist:gc:CountryIdentificationCode-2.0"
+	CountrySchemeURI   string = "urn:oasis:names:specification:ubl:codelist:gc:CountryIdentificationCode-2.1"
 	DianSchemeURI      string = "http://www.dian.gov.co/contratos/facturaelectronica/v1/InvoiceType"
 	InvoiceDateFormat  string = "2006-01-02"
 	InvoiceTimeFormat  string = "15:04:00"
 	AgencyID           string = "195"
 	AgencyName         string = "CO, DIAN (Direccion de Impuestos y Aduanas Nacionales)"
+	SchemeID           string = "9"
+	SchemeName         string = "31"
+	UBLVersion         string = "UBL 2.1"
+	Customization      string = "1"
+	Profile            string = "Dian 2.0"
+	ProfileExecution   string = "2"
 )
-
-var NoResolucionesError error = errors.New("Resolucion Activa no existente")
 
 func (invoice *InvoiceType) AgregarExtension(extension interface{}) {
 
@@ -43,547 +45,104 @@ func (invoice *InvoiceType) AgregarExtension(extension interface{}) {
 		append(invoice.UBLExtensions.UBLExtensions, newExtension)
 }
 
-func NewInvoice(factura FacturaType, vendedor EmpresaType) (*InvoiceType, error) {
-
-	resoluciones := factura.Empresa.Resoluciones
-	var resolucion *ResolucionFacturacionType
-	for _, res := range resoluciones {
-		if res.SiActivo {
-			resolucion = &res
-			break
-		}
-	}
-	if resolucion == nil {
-		return nil, NoResolucionesError
-	}
-
-	impuestosFactura := getImpuestosFactura(factura)
-	totalImpuesto := calcularTotalImpuestos(impuestosFactura)
-
-	ublExtension := UBLExtensionType{
-		ExtensionContent: ExtensionContentType{
-			Extension: DianExtensionType{
-				InvoiceControl: InvoiceControlType{
-					InvoiceAuthorization: resolucion.Numero,
-					AuthorizationPeriod: AuthorizationPeriodType{
-						StartDate: invoiceDate{InvoiceDateFormat, resolucion.Vigencia.Desde},
-						EndDate:   invoiceDate{InvoiceDateFormat, resolucion.Vigencia.Hasta},
-					},
-					AuthorizedInvoices: AuthorizedInvoicesType{
-						Prefix: PrefixType{
-							Type: DianTextType,
-							Data: resolucion.Prefijo,
-						},
-						From: resolucion.Rango.Inferior,
-						To:   resolucion.Rango.Superior,
-					},
-				},
-				InvoiceSource: InvoiceSourceType{
-					IdentificationCode: newIdentificationCode(
-						"6",
-						"United Nations Economic Commission for Europe",
-						CountrySchemeURI,
-						"CO",
-					),
-				},
-				SoftwareProvider: SoftwareProviderType{
-					ProviderID: newProviderID(
-						AgencyID,
-						AgencyName,
-						factura.Empresa.NumeroDocumento,
-					),
-					SoftwareID: newSoftwareID(
-						AgencyID,
-						AgencyName,
-						factura.Empresa.SoftwareFacturacion.Id,
-					),
-				},
-				SoftwareSecurityCode: newSoftwareSecurityCode(
-					AgencyID,
-					AgencyName,
-					resolucion.ClaveTecnica,
-				),
-			},
-		},
-	}
-
-	invoice := InvoiceType{
-		XmlNSFe:           DianNSFe,
-		XmlNSCac:          DianNSCac,
-		XmlNSCbc:          DianNSCbc,
-		XmlNSExt:          DianNSExt,
-		XmlNSNs6:          DianNSNs6,
-		XmlNSNs8:          DianNSNs8,
-		XmlNSSts:          DianNSSts,
-		XmlNSXsi:          DianNSXsi,
-		XsiSchemaLocation: DianSchemaLocation,
-		UBLExtensions: UBLExtensionsType{
-			UBLExtensions: []UBLExtensionType{ublExtension},
-		},
-		UBLVersionID: "2.0",
-		ProfileID:    "1.0",
-		ID:           resolucion.Prefijo + strconv.Itoa(factura.CabezaFactura.Consecutivo),
-		UUID: newUUID(
-			AgencyID,
-			AgencyName,
-			generarCodigoCUFE(*resolucion, factura, impuestosFactura),
-		),
-		IssueDate: invoiceDate{InvoiceDateFormat, factura.CabezaFactura.FechaFacturacion},
-		IssueTime: invoiceDate{InvoiceTimeFormat, factura.CabezaFactura.FechaFacturacion},
-		InvoiceTypeCode: newInvoiceTypeCode(
-			AgencyID,
-			AgencyName,
-			"1",
-		),
-		Note:                 factura.CabezaFactura.Observaciones,
-		DocumentCurrencyCode: factura.CabezaFactura.Moneda,
-		InvoicePeriod: InvoicePeriodType{
-			DurationMeasure: DurationMeasureType{
-				UnitCode: "DAY",
-				Data: calcularDiasVencimiento(
-					factura.CabezaFactura.FechaFacturacion,
-					factura.CabezaFactura.FechaVencimiento,
-				),
-			},
-			Description: "Fecha Vencimiento: " + factura.CabezaFactura.FechaVencimiento.Format(InvoiceDateFormat),
-		},
-		AccountingSupplierParty: AccountingSupplierPartyType{
-			AdditionalAccountID: vendedor.Tipo,
-			Party: PartyType{
-				PartyIdentification: PartyIdentificationType{
-					ID: newPartyID(
-						"31",
-						AgencyID,
-						AgencyName,
-						vendedor.NumeroDocumento,
-					),
-				},
-				PartyName: PartyNameType{
-					Name: vendedor.RazonSocial,
-				},
-				PhysicalLocation: PhysicalLocationType{
-					Address: AddressType{
-						Department:          vendedor.Ubicacion.Departamento,
-						CitySubdivisionName: "",
-						CityName:            vendedor.Ubicacion.Municipio,
-						AddressLine: AddressLineType{
-							Line: []LineType{
-								LineType{
-									Data: vendedor.Ubicacion.Direccion,
-								},
-							},
-						},
-						Country: CountryType{
-							IdentificationCode: vendedor.Ubicacion.Pais,
-						},
-					},
-				},
-				PartyTaxScheme: PartyTaxSchemeType{
-					TaxLevelCode: strconv.Itoa(factura.CabezaFactura.TipoCompra),
-					TaxScheme:    "",
-				},
-				PartyLegalEntity: PartyLegalEntityType{
-					RegistrationName: vendedor.RazonSocial,
-				},
-			},
-		},
-		AccountingCustomerParty: AccountingCustomerPartyType{
-			AdditionalAccountID: strconv.Itoa(factura.CabezaFactura.TipoPersona),
-			Party: PartyType{
-				PartyIdentification: PartyIdentificationType{
-					ID: newPartyID(
-						"31",
-						AgencyID,
-						AgencyName,
-						factura.CabezaFactura.Nit,
-					),
-				},
-				PartyName: PartyNameType{
-					Name: factura.CabezaFactura.RazonSocial,
-				},
-				PhysicalLocation: PhysicalLocationType{
-					Address: AddressType{
-						Department:          factura.CabezaFactura.Departamento,
-						CitySubdivisionName: "",
-						CityName:            factura.CabezaFactura.Ciudad,
-						AddressLine: AddressLineType{
-							Line: []LineType{
-								LineType{
-									Data: factura.CabezaFactura.Direccion,
-								},
-							},
-						},
-						Country: CountryType{
-							IdentificationCode: factura.CabezaFactura.Pais,
-						},
-					},
-				},
-				PartyTaxScheme: PartyTaxSchemeType{
-					TaxLevelCode: strconv.Itoa(factura.CabezaFactura.TipoCompra),
-					TaxScheme:    "",
-				},
-				PartyLegalEntity: PartyLegalEntityType{
-					RegistrationName: factura.CabezaFactura.RazonSocial,
-				},
-			},
-		},
-		TaxTotal: TaxTotalType{
-			TaxAmount: newTaxAmount(
-				factura.CabezaFactura.Moneda,
-				totalImpuesto,
-			),
-			TaxEvidenceIndicator: false,
-			TaxSubtotal: generarSubtotalImpuestos(
-				impuestosFactura,
-				factura.CabezaFactura.Moneda,
-			),
-		},
-		LegalMonetaryTotal: LegalMonetaryTotalType{
-			LineExtensionAmount: newLineExtensionAmount(
-				factura.CabezaFactura.Moneda,
-				factura.CabezaFactura.TotalImporteBruto,
-			),
-			TaxExclusiveAmount: newTaxExclusiveAmount(
-				factura.CabezaFactura.Moneda,
-				0.0,
-			),
-			PayableAmount: newPayableAmount(
-				factura.CabezaFactura.Moneda,
-				factura.CabezaFactura.TotalFactura,
-			),
-		},
-		InvoiceLine: getInvoiceLine(factura),
-	}
-
-	return &invoice, nil
-}
-
-func generarSubtotalImpuestos(impuestos map[string]*ImpuestosCabezaType, moneda string) []TaxSubtotalType {
-
-	result := make([]TaxSubtotalType, len(impuestos))
-	idx := 0
-	for _, impuesto := range impuestos {
-		result[idx] = TaxSubtotalType{
-			TaxableAmount: newTaxableAmount(
-				moneda,
-				impuesto.BaseImponible,
-			),
-			TaxAmount: newTaxAmount(
-				moneda,
-				impuesto.ValorImpuestoRetencion,
-			),
-			Percent: impuesto.Porcentaje,
-			TaxCategory: TaxCategoryType{
-				TaxScheme: TaxSchemeType{
-					ID: impuesto.CodigoImpuestoRetencion,
-				},
-			},
-		}
-		idx++
-	}
-
-	return result
-
-}
-
-func generarCodigoCUFE(resolucion ResolucionFacturacionType, factura FacturaType, impuestos map[string]*ImpuestosCabezaType) string {
-
-	fechaFormato := "20060102150405"
-
-	sha := sha1.New()
-
-	impuesto01 := impuestos["01"]
-	impuesto02 := impuestos["02"]
-	impuesto03 := impuestos["03"]
-
-	valorImpuesto01 := 0.0
-	valorImpuesto02 := 0.0
-	valorImpuesto03 := 0.0
-
-	if impuesto01 != nil {
-		valorImpuesto01 = impuesto01.ValorImpuestoRetencion
-	}
-
-	if impuesto02 != nil {
-		valorImpuesto02 = impuesto02.ValorImpuestoRetencion
-	}
-
-	if impuesto03 != nil {
-		valorImpuesto03 = impuesto03.ValorImpuestoRetencion
-	}
-
-	numeroFactura := resolucion.Prefijo + strconv.Itoa(factura.CabezaFactura.Consecutivo)
-	fechaFactura := factura.CabezaFactura.FechaFacturacion.Format(fechaFormato)
-	valorFactura := fmt.Sprintf("%.2f", factura.CabezaFactura.TotalImporteBruto)
-	codImp1 := "01"
-	valImp1 := fmt.Sprintf("%.2f", valorImpuesto01)
-	codImp2 := "02"
-	valImp2 := fmt.Sprintf("%.2f", valorImpuesto02)
-	codImp3 := "03"
-	valImp3 := fmt.Sprintf("%.2f", valorImpuesto03)
-	valImp := fmt.Sprintf("%.2f", factura.CabezaFactura.TotalFactura)
-	nitOFE := factura.CabezaFactura.NumeroIdentificacion
-	tipAdq := strconv.Itoa(factura.CabezaFactura.TipoPersona)
-	numAdq := factura.CabezaFactura.Nit
-	ciTec := resolucion.ClaveTecnica
-
-	var buffer bytes.Buffer
-	buffer.WriteString(numeroFactura)
-	buffer.WriteString(fechaFactura)
-	buffer.WriteString(valorFactura)
-	buffer.WriteString(codImp1)
-	buffer.WriteString(valImp1)
-	buffer.WriteString(codImp2)
-	buffer.WriteString(valImp2)
-	buffer.WriteString(codImp3)
-	buffer.WriteString(valImp3)
-	buffer.WriteString(valImp)
-	buffer.WriteString(nitOFE)
-	buffer.WriteString(tipAdq)
-	buffer.WriteString(numAdq)
-	buffer.WriteString(ciTec)
-
-	return fmt.Sprintf("%X", sha.Sum(buffer.Bytes()))
-}
-
-func getValoresImpuestos(impuestos []ImpuestosCabezaType) map[string]float64 {
-	result := make(map[string]float64)
-
-	for _, impuesto := range impuestos {
-		result[impuesto.CodigoImpuestoRetencion] = impuesto.ValorImpuestoRetencion
-	}
-
-	return result
-}
-
-func calcularDiasVencimiento(inicio time.Time, fin time.Time) int64 {
-	diaInicio := inicioDia(inicio)
-	diaFin := inicioDia(fin)
-
-	return int64(diaFin.Sub(diaInicio).Hours() / 24)
-}
-
-func inicioDia(t time.Time) time.Time {
-	anio, mes, dia := t.Date()
-	return time.Date(anio, mes, dia, 0, 0, 0, 0, t.Location())
-}
-
-func getInvoiceLine(factura FacturaType) []InvoiceLineType {
-
-	lines := factura.CabezaFactura.ListaDetalles.Detalles
-
-	result := make([]InvoiceLineType, len(lines))
-
-	for idx, line := range lines {
-		result[idx] = InvoiceLineType{
-			ID:                  line.CodigoProducto,
-			InvoicedQuantity:    line.Cantidad,
-			LineExtensionAmount: newLineExtensionAmount(factura.CabezaFactura.Moneda, line.PrecioSinImpuestos),
-			Item: ItemType{
-				Description: line.Descripcion,
-			},
-			Price: PriceType{
-				PriceAmount: newPriceAmountType(factura.CabezaFactura.Moneda, line.ValorUnitario),
-			},
-		}
-	}
-
-	return result
-}
-
-func getImpuestosFactura(factura FacturaType) map[string]*ImpuestosCabezaType {
-	result := make(map[string]*ImpuestosCabezaType)
-	for _, detalle := range factura.CabezaFactura.ListaDetalles.Detalles {
-		for _, impuesto := range detalle.ListaImpuestos.Detalles {
-			impuestoGeneral, ok := result[impuesto.CodigoImpuestoRetencion]
-			if ok {
-				impuestoGeneral.BaseImponible += impuesto.BaseImponible
-				impuestoGeneral.ValorImpuestoRetencion += impuesto.ValorImpuestoRetencion
-			} else {
-				result[impuesto.CodigoImpuestoRetencion] = &ImpuestosCabezaType{
-					BaseImponible:           impuesto.BaseImponible,
-					CodigoImpuestoRetencion: impuesto.CodigoImpuestoRetencion,
-					Porcentaje:              impuesto.Porcentaje,
-					ValorImpuestoRetencion:  impuesto.ValorImpuestoRetencion,
-				}
-			}
-		}
-	}
-
-	return result
-}
-
-func calcularTotalImpuestos(impuestos map[string]*ImpuestosCabezaType) float64 {
-	total := 0.0
-	for _, impuesto := range impuestos {
-		total += impuesto.ValorImpuestoRetencion
-	}
-	return total
-}
-
-func newPriceAmountType(
-	currencyID string,
-	data float64) PriceAmountType {
-	v := PriceAmountType{}
-	v.CurrencyID = currencyID
-	v.Data = data
-	return v
-}
-
-func newPayableAmount(
-	currencyID string,
-	data float64) PayableAmountType {
-	v := PayableAmountType{}
-	v.CurrencyID = currencyID
-	v.Data = data
-	return v
-}
-
-func newTaxExclusiveAmount(
-	currencyID string,
-	data float64) TaxExclusiveAmountType {
-	v := TaxExclusiveAmountType{}
-	v.CurrencyID = currencyID
-	v.Data = data
-	return v
-}
-
-func newLineExtensionAmount(
-	currencyID string,
-	data float64) LineExtensionAmountType {
-	v := LineExtensionAmountType{}
-	v.CurrencyID = currencyID
-	v.Data = data
-	return v
-
-}
-
-func newTaxableAmount(
-	currencyID string,
-	data float64) TaxableAmountType {
-	v := TaxableAmountType{}
-	v.CurrencyID = currencyID
-	v.Data = data
-	return v
-}
-
-func newTaxAmount(
-	currencyID string,
-	data float64) TaxAmountType {
-	v := TaxAmountType{}
-	v.CurrencyID = currencyID
-	v.Data = data
-	return v
-}
-
-func newIdentificationCode(
-	listAgencyID string,
-	listAgencyName string,
-	listSchemeURI string,
-	data string) IdentificationCodeType {
-	v := IdentificationCodeType{}
-	v.ListAgencyID = listAgencyID
-	v.ListAgencyName = listAgencyName
-	v.ListSchemeURI = listSchemeURI
-	v.Data = data
-	return v
-}
-
-func newProviderID(
-	schemeAgencyID string,
-	schemeAgencyName string,
-	data string) ProviderIDType {
-	v := ProviderIDType{}
-	v.SchemeAgencyID = schemeAgencyID
-	v.SchemeAgencyName = schemeAgencyName
-	v.Data = data
-	return v
-}
-
-func newSoftwareID(
-	schemeAgencyID string,
-	schemeAgencyName string,
-	data string) SoftwareIDType {
-	v := SoftwareIDType{}
-	v.SchemeAgencyID = schemeAgencyID
-	v.SchemeAgencyName = schemeAgencyName
-	v.Data = data
-	return v
-}
-
-func newSoftwareSecurityCode(
-	schemeAgencyID string,
-	schemeAgencyName string,
-	data string) SoftwareSecurityCodeType {
-	v := SoftwareSecurityCodeType{}
-	v.SchemeAgencyID = schemeAgencyID
-	v.SchemeAgencyName = schemeAgencyName
-	v.Data = data
-	return v
-}
-
-func newUUID(
-	schemeAgencyID string,
-	schemeAgencyName string,
-	data string) UUIDType {
-	v := UUIDType{}
-	v.SchemeAgencyID = schemeAgencyID
-	v.SchemeAgencyName = schemeAgencyName
-	v.Data = data
-	return v
-}
-func newInvoiceTypeCode(
-	listAgencyID string,
-	listAgencyName string,
-	data string) InvoiceTypeCodeType {
-	v := InvoiceTypeCodeType{}
-	v.ListAgencyID = listAgencyID
-	v.ListAgencyName = listAgencyName
-	v.ListSchemeURI = DianSchemeURI
-	v.Data = data
-	return v
-}
-
-func newPartyID(
-	schemeID string,
-	schemeAgencyID string,
-	schemeAgencyName string,
-	data string) PartyIDType {
-	v := PartyIDType{}
-	v.SchemeAgencyID = schemeAgencyID
-	v.SchemeAgencyName = schemeAgencyName
-	v.Data = data
-	v.SchemeID = schemeID
-	return v
-}
-
 type InvoiceType struct {
-	XMLName                 xml.Name                    `xml:"fe:Invoice"`
-	XmlNSFe                 string                      `xml:"xmlns:fe,attr"`
-	XmlNSCac                string                      `xml:"xmlns:cac,attr"`
-	XmlNSCbc                string                      `xml:"xmlns:cbc,attr"`
-	XmlNSExt                string                      `xml:"xmlns:ext,attr"`
-	XmlNSNs6                string                      `xml:"xmlns:ns6,attr"`
-	XmlNSNs8                string                      `xml:"xmlns:ns8,attr"`
-	XmlNSSts                string                      `xml:"xmlns:sts,attr"`
-	XmlNSXsi                string                      `xml:"xmlns:xsi,attr"`
-	XsiSchemaLocation       string                      `xml:"xsi:schemaLocation,attr"`
-	UBLExtensions           UBLExtensionsType           `xml:",omitempty"`
-	UBLVersionID            string                      `xml:"cbc:UBLVersionID"`
-	ProfileID               string                      `xml:"cbc:ProfileID"`
-	ID                      string                      `xml:"cbc:ID"`
-	UUID                    UUIDType                    `xml:",omitempty"`
-	IssueDate               invoiceDate                 `xml:"cbc:IssueDate"`
-	IssueTime               invoiceDate                 `xml:"cbc:IssueTime"`
-	InvoiceTypeCode         InvoiceTypeCodeType         `xml:",omitempty"`
-	Note                    string                      `xml:"cbc:Note"`
-	DocumentCurrencyCode    string                      `xml:"cbc:DocumentCurrencyCode"`
-	InvoicePeriod           InvoicePeriodType           `xml:",omitempty"`
-	AccountingSupplierParty AccountingSupplierPartyType `xml:",omitempty"`
-	AccountingCustomerParty AccountingCustomerPartyType `xml:",omitempty"`
-	TaxTotal                TaxTotalType                `xml:",omitempty"`
-	LegalMonetaryTotal      LegalMonetaryTotalType      `xml:",omitempty"`
-	InvoiceLine             []InvoiceLineType           `xml:",omitempty"`
+	XMLName                     xml.Name                        `xml:"Invoice"`
+	XmlNS                       string                          `xml:"xmlns,attr"`
+	XmlNSCac                    string                          `xml:"xmlns:cac,attr"`
+	XmlNSCbc                    string                          `xml:"xmlns:cbc,attr"`
+	XmlNSExt                    string                          `xml:"xmlns:ext,attr"`
+	XmlNSSts                    string                          `xml:"xmlns:sts,attr"`
+	XmlNSXades                  string                          `xml:"xmlns:xades,attr"`
+	XmlNSXades141               string                          `xml:"xmlns:xades141,attr"`
+	XmlNSXsi                    string                          `xml:"xmlns:xsi,attr"`
+	XsiSchemaLocation           string                          `xml:"xsi:schemaLocation,attr"`
+	UBLExtensions               UBLExtensionsType               `xml:",omitempty"`
+	UBLVersionID                string                          `xml:"cbc:UBLVersionID"`
+	CustomizationID             string                          `xml:"cbc:CustomizationID"`
+	ProfileID                   string                          `xml:"cbc:ProfileID"`
+	ProfileExecutionID          string                          `xml:cbc:ProfileExecutionID`
+	ID                          string                          `xml:"cbc:ID"`
+	UUID                        UUIDType                        `xml:",omitempty"`
+	IssueDate                   InvoiceDate                     `xml:"cbc:IssueDate"`
+	IssueTime                   InvoiceDate                     `xml:"cbc:IssueTime"`
+	DueDate                     InvoiceDate                     `xml:"cbc:DueDate"`
+	InvoiceTypeCode             string                          `xml:"cbc:InvoiceTypeCode"`
+	Note                        string                          `xml:"cbc:Note"`
+	TaxPointDate                InvoiceDate                     `xml:"cbc:TaxPointDate"`
+	DocumentCurrencyCode        string                          `xml:"cbc:DocumentCurrencyCode"`
+	LineCountNumeric            int                             `xml:"cbc:LineCountNumeric"`
+	InvoicePeriod               InvoicePeriodType               `xml:",omitempty"`
+	OrderReference              ReferenceType                   `xml:"cac:OrderReference,omitempty"`
+	DespatchDocumentReference   ReferenceType                   `xml:"cac:DespatchDocumentReference,omitempty"`
+	ReceiptDocumentReference    ReferenceType                   `xml:"cac:ReceiptDocumentReference,omitempty"`
+	AdditionalDocumentReference AdditionalDocumentReferenceType `xml:"cac:AdditionalDocumentReference,omitempty"`
+	AccountingSupplierParty     AccountingSupplierPartyType     `xml:",omitempty"`
+	AccountingCustomerParty     AccountingCustomerPartyType     `xml:",omitempty"`
+	TaxRepresentativeParty      TaxRepresentativePartyType      `xml:"cac:TaxRepresentativeParty"`
+	Delivery                    DeliveryType                    `xml:"cac:Delivery"`
+	PaymentMeans                PaymentMeansType                `xml:"cac:PaymentMeans"`
+	PaymentTerms                PaymentTermsType                `xml:"cac:PaymentTerms"`
+	AllowanceCharge             []AllowanceChargeType           `xml:"cac:AllowanceCharge"`
+	PaymentExchangeRate         PaymentExchangeRateType         `xml:"cac:PaymentExchangeRate"`
+	TaxTotal                    []TaxTotalType                  `xml:",omitempty"`
+	LegalMonetaryTotal          LegalMonetaryTotalType          `xml:",omitempty"`
+	InvoiceLine                 []InvoiceLineType               `xml:",omitempty"`
+}
+
+type AdditionalDocumentReferenceType struct {
+	ID               string `xml:"cbc:ID"`
+	DocumentTypeCode string `xml:"cbc:DocumentTypeCode"`
+}
+
+type PaymentExchangeRateType struct {
+	SourceCurrencyCode     string      `xml:"cbc:SourceCurrencyCode"`
+	SourceCurrencyBaseRate float64     `xml:"cbc:SourceCurrencyBaseRate"`
+	TargetCurrencyCode     string      `xml:"cbc:TargetCurrencyCode"`
+	TargetCurrencyBaseRate float64     `xml:"cbc:TargetCurrencyBaseRate"`
+	CalculationRate        float64     `xml:"cbc:CalculationRate"`
+	Date                   InvoiceDate `xml:"cbc:Date"`
+}
+
+type AllowanceChargeType struct {
+	ID                        string     `xml:"cbc:ID"`
+	ChargeIndicator           bool       `xml:"cbc:ChargeIndicator"`
+	AllowanceChargeReasonCode int        `xml:"cbc:AllowanceChargeReasonCode,omitempty"`
+	AllowanceChargeReason     string     `xml:"cbc:AllowanceChargeReason"`
+	MultiplierFactorNumeric   float64    `xml:"cbc:MultiplierFactorNumeric"`
+	Amount                    AmountType `xml:"cbc:Amount"`
+	BaseAmount                AmountType `xml:"cbc:BaseAmount"`
+}
+
+type PaymentTermsType struct {
+	ReferenceEventCode int                  `xml:"cbc:ReferenceEventCode"`
+	SettlementPeriod   SettlementPeriodType `xml:"cac:SettlementPeriod"`
+}
+
+type SettlementPeriodType struct {
+	DurationMeasure DurationMeasureType `xml:",omitempty"`
+}
+
+type PaymentMeansType struct {
+	ID               string      `xml:"cbc:ID"`
+	PaymentMeansCode string      `xml:"cbc:PaymentMeansCode"`
+	PaymentDueDate   InvoiceDate `xml:"cbc:PaymentDueDate"`
+}
+
+type DeliveryType struct {
+	ActualDeliveryDate InvoiceDate `xml:"cbc:ActualDeliveryDate"`
+	ActualDeliveryTime InvoiceDate `xml:"cbc:ActualDeliveryTime"`
+	DeliveryAddress    AddressType `xml:"cac:DeliveryAddress"`
+	DeliveryParty      PartyType   `xml:"cac:DeliveryParty"`
+}
+
+type TaxRepresentativePartyType struct {
+	PartyIdentification IDType   `xml:"cac:PartyIdentification"`
+	PartyName           NameType `xml:"cac:PartyName"`
+}
+
+type ReferenceType struct {
+	ID               string `xml:"cbc:ID"`
+	DocumentTypeCode string `xml:"cbc:DocumentTypeCode,omitempty"`
 }
 
 type UBLExtensionsType struct {
@@ -602,11 +161,23 @@ type ExtensionContentType struct {
 }
 
 type DianExtensionType struct {
-	XMLName              xml.Name                 `xml:"sts:DianExtensions"`
-	InvoiceControl       InvoiceControlType       `xml:",omitempty"`
-	InvoiceSource        InvoiceSourceType        `xml:",omitempty"`
-	SoftwareProvider     SoftwareProviderType     `xml:",omitempty"`
-	SoftwareSecurityCode SoftwareSecurityCodeType `xml:",omitempty"`
+	XMLName               xml.Name                  `xml:"sts:DianExtensions"`
+	InvoiceControl        InvoiceControlType        `xml:",omitempty"`
+	InvoiceSource         InvoiceSourceType         `xml:",omitempty"`
+	SoftwareProvider      SoftwareProviderType      `xml:",omitempty"`
+	SoftwareSecurityCode  SoftwareSecurityCodeType  `xml:",omitempty"`
+	AuthorizationProvider AuthorizationProviderType `xml:",omitempty"`
+	QRCode                string                    `xml:"sts:QRCode"`
+}
+
+type AuthorizationProviderType struct {
+	XMLName                 xml.Name                    `xml:"sts:AuthorizationProvider"`
+	AuthorizationProviderID AuthorizationProviderIDType `xml:",omitempty`
+}
+
+type AuthorizationProviderIDType struct {
+	XMLName xml.Name `xml:"sts:AuthorizationProviderID"`
+	IDType
 }
 
 type InvoiceControlType struct {
@@ -618,21 +189,15 @@ type InvoiceControlType struct {
 
 type AuthorizationPeriodType struct {
 	XMLName   xml.Name    `xml:"sts:AuthorizationPeriod"`
-	StartDate invoiceDate `xml:"cbc:StartDate"`
-	EndDate   invoiceDate `xml:"cbc:EndDate"`
+	StartDate InvoiceDate `xml:"cbc:StartDate"`
+	EndDate   InvoiceDate `xml:"cbc:EndDate"`
 }
 
 type AuthorizedInvoicesType struct {
-	XMLName xml.Name   `xml:"sts:AuthorizedInvoices"`
-	Prefix  PrefixType `xml:",omiteempty"`
-	From    int64      `xml:"sts:From"`
-	To      int64      `xml:"sts:To"`
-}
-
-type PrefixType struct {
-	XMLName xml.Name `xml:"sts:Prefix"`
-	Type    string   `xml:"xsi:type,attr"`
-	Data    string   `xml:",chardata"`
+	XMLName xml.Name `xml:"sts:AuthorizedInvoices"`
+	Prefix  string   `xml:sts:Prefix",omiteempty"`
+	From    int64    `xml:"sts:From"`
+	To      int64    `xml:"sts:To"`
 }
 
 type InvoiceSourceType struct {
@@ -652,15 +217,12 @@ type IdentificationCodeType struct {
 	CodeType
 }
 
-type InvoiceTypeCodeType struct {
-	XMLName xml.Name `xml:"cbc:InvoiceTypeCode"`
-	CodeType
-}
-
 type InvoicePeriodType struct {
-	XMLName         xml.Name            `xml:"cac:InvoicePeriod"`
-	DurationMeasure DurationMeasureType `xml:",omiteempty"`
-	Description     string              `xml:"cbc:Description,omiteempty"`
+	XMLName   xml.Name    `xml:"cac:InvoicePeriod"`
+	StartDate InvoiceDate `xml:"cbc:StartDate"`
+	StartTime InvoiceDate `xml:"cbc:StartTime"`
+	EndDate   InvoiceDate `xml:"cbc:EndDate"`
+	EndTime   InvoiceDate `xml:"cbc:EndTime"`
 }
 
 type DurationMeasureType struct {
@@ -676,8 +238,10 @@ type SoftwareProviderType struct {
 }
 
 type IDType struct {
-	SchemeAgencyID   string `xml:"schemeAgencyID,attr"`
-	SchemeAgencyName string `xml:"schemeAgencyName,attr"`
+	SchemeAgencyID   string `xml:"schemeAgencyID,attr,omiteempty"`
+	SchemeAgencyName string `xml:"schemeAgencyName,attr,omiteempty"`
+	SchemeID         string `xml:"schemeID,attr,omiteempty"`
+	SchemeName       string `xml:"schemeName,attr,omiteempty"`
 	Data             string `xml:",chardata"`
 }
 
@@ -687,7 +251,7 @@ type ProviderIDType struct {
 }
 
 type SoftwareIDType struct {
-	XMLName xml.Name `xml:"sts:SoftwareID"`
+	XMLName xml.Name `xml:"sts:SoftwareIDs"`
 	IDType
 }
 
@@ -708,24 +272,28 @@ type PartyIDType struct {
 }
 
 type AccountingSupplierPartyType struct {
-	XMLName             xml.Name  `xml:"fe:AccountingSupplierParty"`
-	AdditionalAccountID string    `xml:"cbc:AdditionalAccountID"`
-	Party               PartyType `xml:",omiteempty"`
+	XMLName             xml.Name  `xml:"cac:AccountingSupplierParty"`
+	AdditionalAccountID IDType    `xml:"cbc:AdditionalAccountID"`
+	Party               PartyType `xml:"cac:Party"`
 }
 
 type AccountingCustomerPartyType struct {
-	XMLName             xml.Name  `xml:"fe:AccountingCustomerParty"`
-	AdditionalAccountID string    `xml:"cbc:AdditionalAccountID"`
-	Party               PartyType `xml:",omiteempty"`
+	XMLName             xml.Name  `xml:"cac:AccountingCustomerParty"`
+	AdditionalAccountID IDType    `xml:"cbc:AdditionalAccountID"`
+	Party               PartyType `xml:"cac:Party"`
 }
 
 type PartyType struct {
-	XMLName             xml.Name                `xml:"fe:Party"`
-	PartyIdentification PartyIdentificationType `xml:",omitempty"`
-	PartyName           PartyNameType           `xml:",omitempty"`
-	PhysicalLocation    PhysicalLocationType    `xml:",omitempty"`
-	PartyTaxScheme      PartyTaxSchemeType      `xml:",omitempty"`
-	PartyLegalEntity    PartyLegalEntityType    `xml:",omitempty"`
+	PartyName        []PartyNameType      `xml:",omitempty"`
+	PhysicalLocation PhysicalLocationType `xml:",omitempty"`
+	PartyTaxScheme   PartyTaxSchemeType   `xml:",omitempty"`
+	PartyLegalEntity PartyLegalEntityType `xml:",omitempty"`
+	Contact          ContactType          `xml:"cac:Contact,omitempty"`
+}
+
+type ContactType struct {
+	Telephone      string `xml:"cbc:Telephone"`
+	ElectronicMail string `xml:"cbc:ElectronicMail"`
 }
 
 type PartyIdentificationType struct {
@@ -739,17 +307,18 @@ type PartyNameType struct {
 }
 
 type PhysicalLocationType struct {
-	XMLName xml.Name    `xml:"fe:PhysicalLocation"`
-	Address AddressType `xml:",omiteempty"`
+	XMLName xml.Name    `xml:"cac:PhysicalLocation"`
+	Address AddressType `xml:"cac:Address"`
 }
 
 type AddressType struct {
-	XMLName             xml.Name        `xml:"fe:Address"`
-	Department          string          `xml:"cbc:Department"`
-	CitySubdivisionName string          `xml:"cbc:CitySubdivisionName"`
-	CityName            string          `xml:"cbc:CityName"`
-	AddressLine         AddressLineType `xml:",omiteempty"`
-	Country             CountryType     `xml:",omiteempty"`
+	XMLName              xml.Name        `xml:"cac:Address"`
+	ID                   string          `xml:"cbc:ID"`
+	CityName             string          `xml:"cbc:CityName"`
+	CountrySubentity     string          `xml:"cbc:CountrySubentity"`
+	CountrySubentityCode string          `xml:"cbc:CountrySubentityCode"`
+	AddressLine          AddressLineType `xml:",omiteempty"`
+	Country              CountryType     `xml:",omiteempty"`
 }
 
 type AddressLineType struct {
@@ -765,24 +334,40 @@ type LineType struct {
 type CountryType struct {
 	XMLName            xml.Name `xml:"cac:Country"`
 	IdentificationCode string   `xml:"cbc:IdentificationCode"`
+	Name               string   `xml:"cbc:Name"`
 }
 
 type PartyTaxSchemeType struct {
-	XMLName      xml.Name `xml:"fe:PartyTaxScheme"`
-	TaxLevelCode string   `xml:"cbc:TaxLevelCode"`
-	TaxScheme    string   `xml:"cac:TaxScheme"`
+	XMLName             xml.Name         `xml:"cac:PartyTaxScheme"`
+	RegistrationName    string           `xml:"cbc:RegistrationName"`
+	CompanyID           IDType           `xml:"cbc:CompanyID"`
+	TaxLevelCode        TaxLevelCodeType `xml:",omitempty"`
+	RegistrationAddress AddressType      `xml:"cac:RegistrationAddress"`
+	TaxScheme           NameType         `xml:"cac:TaxScheme"`
+}
+
+type NameType struct {
+	ID   string `xml:"cbc:ID,omitempty"`
+	Name string `xml:"cbc:Name"`
+}
+
+type TaxLevelCodeType struct {
+	XMLName  xml.Name `xml:"cbc:TaxLevelCode"`
+	ListName string   `xml:"listName,attr"`
+	Data     string   `xml:",chardata"`
 }
 
 type PartyLegalEntityType struct {
-	XMLName          xml.Name `xml:"fe:PartyLegalEntity"`
-	RegistrationName string   `xml:"cbc:RegistrationName"`
+	XMLName                     xml.Name `xml:"cac:PartyLegalEntity"`
+	RegistrationName            string   `xml:"cbc:RegistrationName"`
+	CompanyID                   IDType   `xml:"cbc:CompanyID"`
+	CorporateRegistrationScheme NameType `xml:"cac:CorporateRegistrationScheme"`
 }
 
 type TaxTotalType struct {
-	XMLName              xml.Name          `xml:"fe:TaxTotal"`
-	TaxAmount            TaxAmountType     `xml:",omitempty"`
-	TaxEvidenceIndicator bool              `xml:"cbc:TaxEvidenceIndicator"`
-	TaxSubtotal          []TaxSubtotalType `xml:",omitempty"`
+	TaxAmount            AmountType      `xml:"cbc:TaxAmount"`
+	TaxEvidenceIndicator bool            `xml:"cbc:TaxEvidenceIndicator"`
+	TaxSubtotal          TaxSubtotalType `xml:"cac:TaxSubtotal"`
 }
 
 type AmountType struct {
@@ -807,11 +392,9 @@ type TaxAmountType struct {
 }
 
 type TaxSubtotalType struct {
-	XMLName       xml.Name          `xml:"fe:TaxSubtotal"`
-	TaxableAmount TaxableAmountType `xml:",omitempty"`
-	TaxAmount     TaxAmountType     `xml:",omitempty"`
-	Percent       float64           `xml:"cbc:Percent"`
-	TaxCategory   TaxCategoryType   `xml:",omitempty"`
+	TaxableAmount AmountType      `xml:"cbc:TaxableAmount"`
+	TaxAmount     AmountType      `xml:"cbc:TaxAmount"`
+	TaxCategory   TaxCategoryType `xml:",omitempty"`
 }
 
 type TaxableAmountType struct {
@@ -820,44 +403,36 @@ type TaxableAmountType struct {
 }
 
 type TaxCategoryType struct {
-	XMLName   xml.Name      `xml:"cac:TaxCategory"`
-	TaxScheme TaxSchemeType `xml:",omitempty"`
-}
-
-type TaxSchemeType struct {
-	XMLName xml.Name `xml:"cac:TaxScheme"`
-	ID      string   `xml:"cbc:ID"`
+	XMLName   xml.Name `xml:"cac:TaxCategory"`
+	Percent   float64  `xml:"cbc:Percent"`
+	TaxScheme NameType `xml:"cac:TaxScheme"`
 }
 
 type LegalMonetaryTotalType struct {
-	XMLName             xml.Name                `xml:"fe:LegalMonetaryTotal"`
-	LineExtensionAmount LineExtensionAmountType `xml:",omitempty"`
-	TaxExclusiveAmount  TaxExclusiveAmountType  `xml:",omitempty"`
-	PayableAmount       PayableAmountType       `xml:",omitempty"`
-}
-
-type LineExtensionAmountType struct {
-	XMLName xml.Name `xml:"cbc:LineExtensionAmount"`
-	AmountType
-}
-
-type TaxExclusiveAmountType struct {
-	XMLName xml.Name `xml:"cbc:TaxExclusiveAmount"`
-	AmountType
-}
-
-type PayableAmountType struct {
-	XMLName xml.Name `xml:"cbc:PayableAmount"`
-	AmountType
+	XMLName              xml.Name   `xml:"cac:LegalMonetaryTotal"`
+	LineExtensionAmount  AmountType `xml:"cbc:LineExtensionAmount"`
+	TaxExclusiveAmount   AmountType `xml:"cbc:TaxExclusiveAmount"`
+	TaxInclusiveAmount   AmountType `xml:"cbc:TaxInclusiveAmount"`
+	AllowanceTotalAmount AmountType `xml:"cbc:AllowanceTotalAmount"`
+	ChargeTotalAmount    AmountType `xml:"cbc:ChargeTotalAmount"`
+	PayableAmount        AmountType `xml:"cbc:PayableAmount"`
 }
 
 type InvoiceLineType struct {
-	XMLName             xml.Name                `xml:"fe:InvoiceLine"`
-	ID                  string                  `xml:"cbc:ID"`
-	InvoicedQuantity    int                     `xml:"cbc:InvoicedQuantity"`
-	LineExtensionAmount LineExtensionAmountType `xml:",omitempty"`
-	Item                ItemType                `xml:",omitempty"`
-	Price               PriceType               `xml:",omitempty"`
+	XMLName               xml.Name            `xml:"cac:InvoiceLine"`
+	ID                    string              `xml:"cbc:ID"`
+	InvoicedQuantity      QuantityType        `xml:"cbc:InvoicedQuantity"`
+	LineExtensionAmount   AmountType          `xml:"cbc:LineExtensionAmount"`
+	FreeOfChargeIndicator bool                `xml:"cbc:FreeOfChargeIndicator"`
+	AllowanceCharge       AllowanceChargeType `xml:"cac:AllowanceCharge"`
+	TaxTotal              TaxTotalType        `xml:"cac:TaxTotal"`
+	Item                  ItemType            `xml:",omitempty"`
+	Price                 PriceType           `xml:",omitempty"`
+}
+
+type QuantityType struct {
+	UnitCode string  `xml:"unitCode,attr"`
+	Data     float64 `xml:"xml:",chardata""`
 }
 
 type ItemType struct {
@@ -875,12 +450,12 @@ type PriceAmountType struct {
 	AmountType
 }
 
-type invoiceDate struct {
+type InvoiceDate struct {
 	FormatString string
 	time.Time
 }
 
-func (t invoiceDate) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
+func (t InvoiceDate) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
 	fmted := t.Format(t.FormatString)
 	err := e.EncodeElement(fmted, start)
 	if err != nil {
@@ -888,13 +463,13 @@ func (t invoiceDate) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
 	}
 	return nil
 }
-func (t *invoiceDate) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
+func (t *InvoiceDate) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
 	var v string
 	d.DecodeElement(&v, &start)
 	parse, err := time.Parse(t.FormatString, v)
 	if err != nil {
 		return err
 	}
-	*t = invoiceDate{t.FormatString, parse}
+	*t = InvoiceDate{t.FormatString, parse}
 	return nil
 }

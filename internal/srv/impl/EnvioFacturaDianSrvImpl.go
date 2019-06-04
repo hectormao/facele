@@ -13,7 +13,7 @@ import (
 	"encoding/xml"
 
 	"archive/zip"
-
+	"errors"
 	"fmt"
 
 	"github.com/hectormao/facele/pkg/cfg"
@@ -25,6 +25,8 @@ import (
 	soap "github.com/hooklift/gowsdl/soap"
 	"github.com/satori/go.uuid"
 
+	"github.com/hectormao/facele/internal/srv"
+
 	"io/ioutil"
 )
 
@@ -32,20 +34,42 @@ type EnvioFacturaDianSrvImpl struct {
 	Repo                 repo.FacturaRepo
 	ColaEnvioRepo        repo.ColaEnvioRepo
 	ColaNotificacionRepo repo.ColaNotificacionRepo
+	GenericodeSrv        srv.GenericodeSrv
 	Config               cfg.FaceleConfigType
+	FacturaTrns          trns.FacturaDianTrns
 }
+
+var NoResolucionesError error = errors.New("Resolucion Activa no existente")
 
 func (srv EnvioFacturaDianSrvImpl) IniciarConsumidorCola() error {
 	facturasAEnviar, err := srv.ColaEnvioRepo.GetFacturasAEnviar()
 	if err != nil {
 		return err
 	}
+	generiCodes, err := srv.GenericodeSrv.getGenericodes()
+	if err != nil {
+		return err
+	}
+
 	for factura := range facturasAEnviar {
 		log.Printf("Enviando factura: %v", factura.ObjectId)
 
+		resoluciones := factura.Empresa.Resoluciones
+		var resolucion *ent.ResolucionFacturacionType
+		for _, res := range resoluciones {
+			if res.SiActivo {
+				resolucion = &res
+				break
+			}
+		}
+		if resolucion == nil {
+			log.Printf("%v", NoResolucionesError)
+			continue
+		}
+
 		idEmpresa := factura.EmpresaID
 		log.Printf("idEmpresa: %v", idEmpresa)
-		documentoElectronico, cufe, err := srv.construirDocumentoElectronico(factura)
+		documentoElectronico, cufe, err := srv.construirDocumentoElectronico(factura, *resolucion)
 
 		if err != nil {
 			log.Printf("Error al construir documento electronico: %v", err)
@@ -74,7 +98,7 @@ func (srv EnvioFacturaDianSrvImpl) IniciarConsumidorCola() error {
 
 		var nit facturaSoap.NitType = facturaSoap.NitType(factura.CabezaFactura.NumeroIdentificacion)
 		var numeroFactura facturaSoap.InvoiceNumberType = facturaSoap.InvoiceNumberType(
-			strconv.Itoa(factura.CabezaFactura.Consecutivo),
+			resolucion.Prefijo + strconv.Itoa(factura.CabezaFactura.Consecutivo),
 		)
 
 		request := facturaSoap.EnvioFacturaElectronica{
@@ -83,6 +107,10 @@ func (srv EnvioFacturaDianSrvImpl) IniciarConsumidorCola() error {
 			IssueDate:     time.Now(),
 			Document:      documentoElectronico,
 		}
+
+		xmlRequest, err := xml.Marshal(request)
+
+		log.Printf("DIAN Request: %s", xmlRequest)
 
 		respuesta, err := service.EnvioFacturaElectronica(&request)
 		if err != nil {
@@ -113,24 +141,7 @@ func (srv EnvioFacturaDianSrvImpl) IniciarConsumidorCola() error {
 	return nil
 }
 
-func (srv EnvioFacturaDianSrvImpl) construirDocumentoElectronico(factura ent.FacturaType) ([]byte, string, error) {
-
-	vendedor, err := srv.Repo.GetEmpresa(factura.CabezaFactura.NumeroIdentificacion)
-	if err != nil {
-		return nil, "", err
-	}
-
-	invoice, err := ent.NewInvoice(factura, *vendedor)
-	if err != nil {
-		return nil, "", err
-	}
-
-	sign, err := ssl.FirmarXML(invoice)
-	if err != nil {
-		return nil, "", err
-	}
-
-	invoice.AgregarExtension(sign)
+func (srv EnvioFacturaDianSrvImpl) construirDocumentoElectronico(factura ent.FacturaType, resolucion ent.ResolucionFacturacionType) ([]byte, string, error) {
 
 	data, err := xml.Marshal(invoice)
 	if err != nil {

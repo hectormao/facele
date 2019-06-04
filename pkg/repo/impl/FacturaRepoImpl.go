@@ -8,8 +8,10 @@ import (
 	"time"
 
 	"github.com/hectormao/facele/pkg/ent"
+	repoCfg "github.com/hectormao/facele/pkg/repo/cfg"
 
 	"github.com/hectormao/facele/pkg/cfg"
+	"github.com/hectormao/facele/pkg/trns"
 	"github.com/mongodb/mongo-go-driver/bson"
 	"github.com/mongodb/mongo-go-driver/bson/objectid"
 	"github.com/mongodb/mongo-go-driver/mongo"
@@ -18,7 +20,7 @@ import (
 type FacturaRepoImpl struct {
 	client *mongo.Client
 	db     *mongo.Database
-	Config cfg.FaceleConfigType
+	Config repoCfg.MongoConfig
 }
 
 func (repo FacturaRepoImpl) AlmacenarFactura(factura ent.FacturaType) (string, error) {
@@ -150,13 +152,13 @@ func (repo FacturaRepoImpl) GetEmpresaPorId(id string) (*ent.EmpresaType, error)
 }
 
 func (repo *FacturaRepoImpl) conectar() error {
-	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
-	client, err := mongo.Connect(ctx, "mongodb://172.17.0.3:27017")
+	ctx, _ := context.WithTimeout(context.Background(), repo.Config.getTimeout()*time.Second)
+	client, err := mongo.Connect(ctx, repo.Config.getURL())
 	if err != nil {
 		return err
 	}
 
-	database := client.Database("facele")
+	database := client.Database(repo.Config.getDatabase())
 
 	repo.db = database
 	repo.client = client

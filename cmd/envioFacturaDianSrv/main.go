@@ -32,7 +32,7 @@ func main() {
 }
 
 func getServicio(config cfg.FaceleConfigType) srv.EnvioFacturaDianSrv {
-	facturaRepo := repo.FacturaRepoImpl{Config: config}
+	facturaRepo := repo.FacturaRepoImpl{Config: config.MongoConfig}
 	colaRepo := repo.ColaRepoImpl{Config: config}
 	return srvImpl.EnvioFacturaDianSrvImpl{
 		facturaRepo,

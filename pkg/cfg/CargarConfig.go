@@ -25,9 +25,21 @@ type WebServerType struct {
 }
 
 type MongoConfigType struct {
-	Host     string `yaml:"host"`
-	Port     int    `yaml:"port"`
+	URL      string `yaml:"url"`
+	Timeout  int    `yaml:"timeout"`
 	Database string `yaml:"database"`
+}
+
+func (cfg MongoConfigType) getURL() string {
+	return cfg.URL
+}
+
+func (cfg MongoConfigType) getDatabase() string {
+	return cfg.Database
+}
+
+func (cfg MongoConfigType) getTimeout() int {
+	return cfg.Timeout
 }
 
 type QueueType struct {
