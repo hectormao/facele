@@ -1,6 +1,9 @@
 package impl
 
 import (
+	"bytes"
+	"crypto/sha1"
+	"fmt"
 	"strconv"
 	"time"
 
@@ -131,8 +134,10 @@ func (trns FacturaDianTrnsImpl) newInvoice(factura ent.FacturaType, vendedor ent
 				Data:           vendedor.Tipo,
 			},
 			Party: ent.PartyType{
-				PartyName: ent.NameType{
-					Name: vendedor.RazonSocial,
+				PartyName: []ent.PartyNameType{
+					ent.PartyNameType{
+						Name: vendedor.RazonSocial,
+					},
 				},
 				PhysicalLocation: ent.PhysicalLocationType{
 					Address: ent.AddressType{
@@ -162,24 +167,21 @@ func (trns FacturaDianTrnsImpl) newInvoice(factura ent.FacturaType, vendedor ent
 			},
 		},
 		AccountingCustomerParty: ent.AccountingCustomerPartyType{
-			AdditionalAccountID: strconv.Itoa(factura.CabezaFactura.TipoPersona),
+			AdditionalAccountID: ent.IDType{
+				Data: strconv.Itoa(factura.CabezaFactura.TipoPersona),
+			},
 			Party: ent.PartyType{
-				PartyIdentification: ent.PartyIdentificationType{
-					ID: trns.newPartyID(
-						"31",
-						ent.AgencyID,
-						ent.AgencyName,
-						factura.CabezaFactura.Nit,
-					),
-				},
-				PartyName: ent.PartyNameType{
-					Name: factura.CabezaFactura.RazonSocial,
+				PartyName: []ent.PartyNameType{
+					ent.PartyNameType{
+						Name: factura.CabezaFactura.RazonSocial,
+					},
 				},
 				PhysicalLocation: ent.PhysicalLocationType{
 					Address: ent.AddressType{
-						Department:          factura.CabezaFactura.Departamento,
-						CitySubdivisionName: "",
-						CityName:            factura.CabezaFactura.Ciudad,
+						ID:                   "",
+						CityName:             factura.CabezaFactura.Ciudad,
+						CountrySubentity:     "",
+						CountrySubentityCode: "",
 						AddressLine: ent.AddressLineType{
 							Line: []ent.LineType{
 								ent.LineType{
@@ -189,12 +191,19 @@ func (trns FacturaDianTrnsImpl) newInvoice(factura ent.FacturaType, vendedor ent
 						},
 						Country: ent.CountryType{
 							IdentificationCode: factura.CabezaFactura.Pais,
+							Name:               "",
 						},
 					},
 				},
 				PartyTaxScheme: ent.PartyTaxSchemeType{
-					TaxLevelCode: strconv.Itoa(factura.CabezaFactura.TipoCompra),
-					TaxScheme:    "",
+					TaxLevelCode: ent.TaxLevelCodeType{
+						ListName: "05",
+						Data:     "0-11",
+					},
+					TaxScheme: ent.NameType{
+						ID:   "01",
+						Name: "IVA",
+					},
 				},
 				PartyLegalEntity: ent.PartyLegalEntityType{
 					RegistrationName: factura.CabezaFactura.RazonSocial,
@@ -234,22 +243,22 @@ func (trns FacturaDianTrnsImpl) newInvoice(factura ent.FacturaType, vendedor ent
 
 func (trns FacturaDianTrnsImpl) generarSubtotalImpuestos(impuestos map[string]*ent.ImpuestosCabezaType, moneda string) []ent.TaxSubtotalType {
 
-	result := make([]TaxSubtotalType, len(impuestos))
+	result := make([]ent.TaxSubtotalType, len(impuestos))
 	idx := 0
 	for _, impuesto := range impuestos {
-		result[idx] = TaxSubtotalType{
-			TaxableAmount: newTaxableAmount(
+		result[idx] = ent.TaxSubtotalType{
+			TaxableAmount: trns.newTaxableAmount(
 				moneda,
 				impuesto.BaseImponible,
 			),
-			TaxAmount: newTaxAmount(
+			TaxAmount: trns.newTaxAmount(
 				moneda,
 				impuesto.ValorImpuestoRetencion,
 			),
-			Percent: impuesto.Porcentaje,
-			TaxCategory: TaxCategoryType{
-				TaxScheme: TaxSchemeType{
-					ID: impuesto.CodigoImpuestoRetencion,
+			TaxCategory: ent.TaxCategoryType{
+				TaxScheme: ent.NameType{
+					ID:   impuesto.CodigoImpuestoRetencion,
+					Name: "",
 				},
 			},
 		}
@@ -331,8 +340,8 @@ func (trns FacturaDianTrnsImpl) getValoresImpuestos(impuestos []ent.ImpuestosCab
 }
 
 func (trns FacturaDianTrnsImpl) calcularDiasVencimiento(inicio time.Time, fin time.Time) int64 {
-	diaInicio := inicioDia(inicio)
-	diaFin := inicioDia(fin)
+	diaInicio := trns.inicioDia(inicio)
+	diaFin := trns.inicioDia(fin)
 
 	return int64(diaFin.Sub(diaInicio).Hours() / 24)
 }
@@ -346,13 +355,13 @@ func (trns FacturaDianTrnsImpl) getInvoiceLine(factura ent.FacturaType) []ent.In
 
 	lines := factura.CabezaFactura.ListaDetalles.Detalles
 
-	result := make([]InvoiceLineType, len(lines))
+	result := make([]ent.InvoiceLineType, len(lines))
 
 	for idx, line := range lines {
-		result[idx] = InvoiceLineType{
+		result[idx] = ent.InvoiceLineType{
 			ID:                  line.CodigoProducto,
 			InvoicedQuantity:    line.Cantidad,
-			LineExtensionAmount: newLineExtensionAmount(factura.CabezaFactura.Moneda, line.PrecioSinImpuestos),
+			LineExtensionAmount: trns.newLineExtensionAmount(factura.CabezaFactura.Moneda, line.PrecioSinImpuestos),
 			Item: ItemType{
 				Description: line.Descripcion,
 			},
@@ -402,34 +411,6 @@ func (trns FacturaDianTrnsImpl) newPriceAmountType(
 	v.CurrencyID = currencyID
 	v.Data = data
 	return v
-}
-
-func (trns FacturaDianTrnsImpl) newPayableAmount(
-	currencyID string,
-	data float64) ent.PayableAmountType {
-	v := PayableAmountType{}
-	v.CurrencyID = currencyID
-	v.Data = data
-	return v
-}
-
-func (trns FacturaDianTrnsImpl) newTaxExclusiveAmount(
-	currencyID string,
-	data float64) ent.TaxExclusiveAmountType {
-	v := TaxExclusiveAmountType{}
-	v.CurrencyID = currencyID
-	v.Data = data
-	return v
-}
-
-func (trns FacturaDianTrnsImpl) newLineExtensionAmount(
-	currencyID string,
-	data float64) ent.LineExtensionAmountType {
-	v := LineExtensionAmountType{}
-	v.CurrencyID = currencyID
-	v.Data = data
-	return v
-
 }
 
 func (trns FacturaDianTrnsImpl) newTaxableAmount(
@@ -507,17 +488,6 @@ func (trns FacturaDianTrnsImpl) newUUID(
 	v := UUIDType{}
 	v.SchemeID = schemeID
 	v.SchemeName = schemeName
-	v.Data = data
-	return v
-}
-func (trns FacturaDianTrnsImpl) newInvoiceTypeCode(
-	listAgencyID string,
-	listAgencyName string,
-	data string) ent.InvoiceTypeCodeType {
-	v := InvoiceTypeCodeType{}
-	v.ListAgencyID = listAgencyID
-	v.ListAgencyName = listAgencyName
-	v.ListSchemeURI = DianSchemeURI
 	v.Data = data
 	return v
 }
