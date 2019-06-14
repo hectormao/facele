@@ -21,8 +21,8 @@ type EmpresaType struct {
 }
 
 type FacturaType struct {
-	XMLName       xml.Name          `xml:"listaFacturas" bson:"-" json:"-"`
-	CabezaFactura CabezaFacturaType `xml:",omitempty" bson:"cabeza_factura" json:"cabeza_factura"`
+	XMLName       xml.Name          `xml:"listaDocumentos" bson:"-" json:"-"`
+	CabezaFactura CabezaFacturaType `xml:"cabezaDocumento" bson:"cabeza_documento" json:"cabeza_documento"`
 	EmpresaID     string            `xml:"-" bson:"_empresa_id" json:"_empresa_id"`
 	Empresa       EmpresaType       `xml:"-" bson:"-" json:"_empresa"`
 	ObjectId      string            `xml:"-" bson:"-" json:"_id"`
@@ -30,74 +30,92 @@ type FacturaType struct {
 }
 
 type CabezaFacturaType struct {
-	XMLName                xml.Name           `xml:"cabezaFactura" bson:"-" json:"-"`
-	Prefijo                string             `xml:"prefijo" bson:"prefijo" json:"prefijo"`
-	Consecutivo            int                `xml:"consecutivo" bson:"consecutivo" json:"consecutivo"`
-	FechaFacturacion       time.Time          `xml:"fechafacturacion" bson:"fecha_facturacion" json:"fecha_facturacion"`
-	TipoDocumento          int                `xml:"tipodocumento" bson:"tipo_documento" json:"tipo_documento"`
-	TipoIdentificacion     int                `xml:"tipoidentificacion" bson:"tipo_identificacion" json:"tipo_identificacion"`
-	TipoPersona            int                `xml:"tipopersona" bson:"tipo_persona" json:"tipo_persona"`
-	Telefono               string             `xml:"telefono" bson:"telefono" json:"telefono"`
-	Pais                   string             `xml:"pais" bson:"pais" json:"pais"`
-	Ciudad                 string             `xml:"ciudad" bson:"ciudad" json:"ciudad"`
-	Departamento           string             `xml:"departamento" bson:"departamento" json:"departamento"`
-	Direccion              string             `xml:"direccion" bson:"direccion" json:"direccion"`
-	NombreVendedor         string             `xml:"nombrevendedor" bson:"nombre_vendedor" json:"nombre_vendedor"`
-	NumeroIdentificacion   string             `xml:"numeroidentificacion" bson:"numero_identificacion" json:"numero_identificacion"`
-	TipoCompra             int                `xml:"tipocompra" bson:"tipo_compra" json:"tipo_compra"`
-	FechaFacturaModificada time.Time          `xml:"fechafacturamodificada" bson:"fecha_factura_modificada" json:"fecha_factura_modificada"`
-	FechaVencimiento       time.Time          `xml:"fechavencimiento" bson:"fecha_vencimiento" json:"fecha_vencimiento"`
-	RazonSocial            string             `xml:"razonsocial" bson:"razon_social" json:"razon_social"`
-	Observaciones          string             `xml:"observaciones" bson:"observaciones" json:"observaciones"`
-	Moneda                 string             `xml:"moneda" bson:"moneda" json:"moneda"`
-	TotalBaseImponible     float64            `xml:"totalbaseimponible" bson:"total_base_imponible" json:"total_base_imponible"`
-	TotalFactura           float64            `xml:"totalfactura" bson:"total_factura" json:"total_factura"`
-	TotalImporteBruto      float64            `xml:"totalimportebruto" bson:"total_importe_bruto" json:"total_importe_bruto"`
-	Nit                    string             `xml:"nit" bson:"nit" json:"nit"`
-	ListaDetalles          ListaDetallesType  `xml:"" bson:"lista_detalles" json:"lista_detalles"`
-	ListaImpuestos         ListaImpuestosType `xml:"" bson:"lista_impuestos" json:"lista_impuestos"`
-}
-type ListaDetallesType struct {
-	XMLName  xml.Name      `xml:"listaDetalles" bson:"-" json:"-"`
-	Detalles []DetalleType `xml:"Detalle" bson:",omitempty" json:",omitempty"`
+	TipoDocumento          int                  `xml:"Tipodocumento" bson:"tipo_documento" json:"tipo_documento"`
+	Prefijo                string               `xml:"Prefijo" bson:"prefijo" json:"prefijo"`
+	Consecutivo            int                  `xml:"Consecutivo" bson:"consecutivo" json:"consecutivo"`
+	FechaFacturacion       time.Time            `xml:"Fechafacturacion" bson:"fecha_facturacion" json:"fecha_facturacion"`
+	Nit                    string               `xml:"Nit" bson:"nit" json:"nit"`
+	AplicaFel              bool                 `xml:"Aplicafel" bson:"aplica_fel" json:"aplica_fel"`
+	Pago                   PagoType             `xml:"Pago" bson:"pago" json:"pago"`
+	ListaDetalles          []DetalleType        `xml:"listaDetalle" bson:"lista_detalle" json:"lista_detalle"`
+	ListaImpuestos         []ImpuestoType       `xml:"listaImpuestos" bson:"lista_impuestos" json:"lista_impuestos"`
+	ListaAdquirentes       []AdquirienteType    `xml:"listaAdquirentes" bson:"lista_adquirentes" json:"lista_adquirentes"`
+	ListaCamposAdicionales []CampoAdicionalType `xml:"listaCamposAdicionales" bson:"lista_adicionales" json:"lista_adicionales"`
+	ListaCargos            []CargoType          `xml:"listaCargos" bson:"lista_cargos" json:"lista_cargos"`
+	ListaMediosPagos       []MedioPagoType      `xml:"listaMediosPagos" bson:"lista_medios_pagos" json:"lista_medios_pagos"`
 }
 
-type ListaImpuestosType struct {
-	XMLName         xml.Name              `xml:"listaImpuestos" bson:"-" json:"-"`
-	ImpuestosCabeza []ImpuestosCabezaType `xml:"impuestosCabeza" bson:",omitempty" json:",omitempty"`
+type MedioPagoType struct {
+	XMLName   xml.Name `xml:"MedioPago" bson:"-" json:"-"`
+	MedioPago string   `xml:"medioPago" bson:"medio_pago" json:"medio_pago"`
+}
+
+type AdquirienteType struct {
+	XMLName                 xml.Name `xml:"Adquiriente" bson:"-" json:"-"`
+	TipoPersona             string   `xml:"tipopersona" bson:"tipo_persona" json:"tipo_persona"`
+	NombreCompleto          string   `xml:"nombrecompleto" bson:"nombre_completo" json:"nombre_completo"`
+	TipoIdentificacion      string   `xml:"tipoidentificacion" bson:"tipo_identificacion" json:"tipo_identificacion"`
+	NumeroIdentificacion    string   `xml:"numeroidentificacion" bson:"numero_identificacion" json:"numero_identificacion"`
+	Regimen                 string   `xml:"regimen" bson:"regimen" json:"regimen"`
+	Email                   string   `xml:"Email" bson:"email" json:"email"`
+	Pais                    string   `xml:"pais" bson:"pais" json:"pais"`
+	Departamento            string   `xml:"departamento" bson:"departamento" json:"departamento"`
+	NombreDepartamento      string   `xml:"nombredepartamento" bson:"nombre_departamento" json:"nombre_departamento"`
+	Ciudad                  string   `xml:"ciudad" bson:"ciudad" json:"ciudad"`
+	DescripcionCiudad       string   `xml:"descripcionciudad" bson:"descripcion_ciudad" json:"descripcion_ciudad"`
+	Direccion               string   `xml:"direccion" bson:"pdireccion" json:"direccion"`
+	Telefono                string   `xml:"telefono" bson:"telefono" json:"telefono"`
+	EnvioPorEmailPlataforma string   `xml:"envioPorEmailPlataforma" bson:"envio_por_email_plataforma" json:"envio_por_email_plataforma"`
+	NitProveedorTecnologico string   `xml:"nitProveedorTecnologico" bson:"nit_proveedor_tecnologico" json:"nit_proveedor_tecnologico"`
+}
+
+type PagoType struct {
+	Moneda               string    `xml:"moneda" bson:"moneda" json:"moneda"`
+	TotalImporteBruto    float64   `xml:"totalimportebruto" bson:"total_importe_bruto" json:"total_importe_bruto"`
+	TotalBaseImponible   float64   `xml:"totalbaseimponible" bson:"total_base_imponible" json:"total_base_imponible"`
+	TotalBaseConImpuesto float64   `xml:"totalbaseconimpuesto" bson:"total_base_con_impuesto" json:"total_base_con_impuesto"`
+	TotalFactura         float64   `xml:"totalfactura" bson:"total_factura" json:"total_factura"`
+	TipoCompra           int       `xml:"tipocompra" bson:"tipo_compra" json:"tipo_compra"`
+	PeriodoDePagoA       string    `xml:"periododepagoa" bson:"periodo_de_pago_a" json:"periodo_de_pago_a"`
+	FechaVencimiento     time.Time `xml:"fechavencimiento" bson:"fecha_vencimiento" json:"fecha_vencimiento"`
 }
 
 type DetalleType struct {
-	XMLName            xml.Name                  `xml:"Detalle" bson:"-" json:"-"`
-	Cantidad           int                       `xml:"cantidad" bson:"cantidad" json:"cantidad"`
-	CodigoProducto     string                    `xml:"codigoproducto" bson:"codigo_producto" json:"codigo_producto"`
-	Descripcion        string                    `xml:"descripcion" bson:"descripcion" json:"descripcion"`
-	PrecioSinImpuestos float64                   `xml:"preciosinimpuestos" bson:"precio_sin_impuestos" json:"precio_sin_impuestos"`
-	PrecioTotal        float64                   `xml:"preciototal" bson:"precio_total" json:"precio_total"`
-	ValorUnitario      float64                   `xml:"valorunitario" bson:"valor_unitario" json:"valor_unitario"`
-	ListaImpuestos     ListaImpuestosDetalleType `xml:"" bson:"lista_impuestos" json:"lista_impuestos"`
+	XMLName            xml.Name             `xml:"Detalle" bson:"-" json:"-"`
+	CodigoProducto     string               `xml:"Codigoproducto" bson:"codigo_producto" json:"codigo_producto"`
+	TipoCodigoProducto string               `xml:"tipocodigoproducto" bson:"tipo_codigo_producto" json:"tipo_codigo_producto"`
+	NombreProducto     string               `xml:"nombreproducto" bson:"nombre_producto" json:"nombre_producto"`
+	Descripcion        string               `xml:"descripcion" bson:"descripcion" json:"descripcion"`
+	Cantidad           int                  `xml:"cantidad" bson:"cantidad" json:"cantidad"`
+	ValorUnitario      float64              `xml:"valorunitario" bson:"valor_unitario" json:"valor_unitario"`
+	PrecioSinImpuestos float64              `xml:"preciosinimpuestos" bson:"precio_sin_impuestos" json:"precio_sin_impuestos"`
+	PrecioTotal        float64              `xml:"preciototal" bson:"precio_total" json:"precio_total"`
+	TipoImpuesto       string               `xml:"tipoImpuesto" bson:"tipo_impuesto" json:"tipo_impuesto"`
+	ListaImpuestos     []ImpuestoType       `xml:"listaImpuestos" bson:"lista_impuestos" json:"lista_impuestos"`
+	ListaCargos        []CargoType          `xml:"listaCargos" bson:"lista_cargos" json:"lista_cargos"`
+	ListaAdicionales   []CampoAdicionalType `xml:"listaAdicionales" bson:"Lista_adicionales" json:"Lista_adicionales"`
 }
 
-type ListaImpuestosDetalleType struct {
-	XMLName  xml.Name              `xml:"listaImpuestos" bson:"-" json:"-"`
-	Detalles []ImpuestoDetalleType `xml:"impuestoDetalle"`
+type CampoAdicionalType struct {
+	XMLName     xml.Name `xml:"CampoAdicional" bson:"-" json:"-"`
+	NombreCampo float64  `xml:"nombreCampo" bson:"nombre_campo" json:"nombre_campo"`
+	ValorCampo  float64  `xml:"valorCampo" bson:"valor_campo" json:"valor_campo"`
 }
 
-type ImpuestoDetalleType struct {
-	XMLName                 xml.Name `xml:"impuestoDetalle" bson:"-" json:"-"`
-	CodigoProducto          string   `xml:"codigoproducto" bson:"codigo_producto" json:"codigo_producto"`
-	BaseImponible           float64  `xml:"baseimponible" bson:"base_imponible" json:"base_imponible"`
+type CargoType struct {
+	XMLName         xml.Name `xml:"Cargo" bson:"-" json:"-"`
+	ValorCargo      float64  `xml:"valorCargo" bson:"valor_cargo" json:"valor_cargo"`
+	PorcentajeCargo float64  `xml:"porcentajeCargo" bson:"porcentaje_cargo" json:"porcentaje_cargo"`
+	Descripcion     float64  `xml:"descripcion" bson:"descripcion" json:"descripcion"`
+}
+
+type ImpuestoType struct {
+	XMLName                 xml.Name `xml:"Impuesto" bson:"-" json:"-"`
 	CodigoImpuestoRetencion string   `xml:"codigoImpuestoRetencion" bson:"codigo_impuesto_retencion" json:"codigo_impuesto_retencion"`
 	Porcentaje              float64  `xml:"porcentaje" bson:"porcentaje" json:"porcentaje"`
 	ValorImpuestoRetencion  float64  `xml:"valorImpuestoRetencion" bson:"valor_impuesto_retencion" json:"valor_impuesto_retencion"`
-}
-
-type ImpuestosCabezaType struct {
-	XMLName                 xml.Name `xml:"impuestosCabeza" bson:"-" json:"-"`
 	BaseImponible           float64  `xml:"baseimponible" bson:"base_imponible" json:"base_imponible"`
-	CodigoImpuestoRetencion string   `xml:"codigoImpuestoRetencion" bson:"codigo_impuesto_retencion" json:"codigo_impuesto_retencion"`
-	Porcentaje              float64  `xml:"porcentaje" bson:"porcentaje" json:"porcentaje"`
-	ValorImpuestoRetencion  float64  `xml:"valorImpuestoRetencion" bson:"valor_impuesto_retencion" json:"valor_impuesto_retencion"`
+	IsAutoRetenido          bool     `xml:"isAutoRetenido" bson:"is_auto_retenido" json:"is_auto_retenido"`
 }
 
 type TerceroType struct {

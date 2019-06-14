@@ -56,10 +56,10 @@ func (trns FacturaDianTrnsImpl) newInvoice(factura ent.FacturaType, vendedor ent
 				},
 				InvoiceSource: ent.InvoiceSourceType{
 					IdentificationCode: trns.newIdentificationCode(
-						"6",
-						"United Nations Economic Commission for Europe",
+						ent.ListAgencyID,
+						ent.ListAgencyName,
 						ent.CountrySchemeURI,
-						"CO",
+						factura.CabezaFactura.Pais,
 					),
 				},
 				SoftwareProvider: ent.SoftwareProviderType{
@@ -81,6 +81,7 @@ func (trns FacturaDianTrnsImpl) newInvoice(factura ent.FacturaType, vendedor ent
 					ent.AgencyName,
 					resolucion.ClaveTecnica,
 				),
+				AuthorizationProvider: ent.AuthorizationProviderType{},
 			},
 		},
 	}

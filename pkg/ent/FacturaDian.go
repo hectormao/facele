@@ -31,6 +31,8 @@ const (
 	Customization      string = "1"
 	Profile            string = "Dian 2.0"
 	ProfileExecution   string = "2"
+	ListAgencyID       string = "6"
+	ListAgencyName     string = "United Nations Economic Commission for Europe"
 )
 
 func (invoice *InvoiceType) AgregarExtension(extension interface{}) {
