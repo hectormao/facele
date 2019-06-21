@@ -130,16 +130,20 @@ type TerceroType struct {
 }
 
 type UbicacionType struct {
-	Pais         string `bson:"pais" json:"pais"`
-	Departamento string `bson:"departamento" json:"departamento"`
-	Municipio    string `bson:"municipio" json:"municipio"`
-	Direccion    string `bson:"direccion" json:"direccion"`
+	Pais         ItemUbicacionType `bson:"pais" json:"pais"`
+	Departamento ItemUbicacionType `bson:"departamento" json:"departamento"`
+	Municipio    ItemUbicacionType `bson:"municipio" json:"municipio"`
+	Direccion    string            `bson:"direccion" json:"direccion"`
+}
+
+type ItemUbicacionType struct {
+	Codigo string `bson:"codigo" json:"codigo"`
+	Nombre string `bson:"nombre" json:"nombre"`
 }
 
 type ContactoType struct {
-	Telefono string `bson:"telefono" json:"telefono"`
-	Correo1  string `bson:"correo1" json:"correo1"`
-	Correo2  string `bson:"correo2" json:"correo2"`
+	Telefonos []string `bson:"telefonos" json:"telefonos"`
+	Correos   []string `bson:"correos" json:"correos"`
 }
 
 type ResolucionFacturacionType struct {

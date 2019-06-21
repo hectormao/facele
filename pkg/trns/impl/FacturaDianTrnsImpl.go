@@ -12,7 +12,6 @@ import (
 )
 
 type FacturaDianTrnsImpl struct {
-	genericodes map[string]map[string]ent.Genericode
 }
 
 func (trns FacturaDianTrnsImpl) FacturaToInvoice(factura ent.FacturaType, resolucion ent.ResolucionFacturacionType, vendedor ent.EmpresaType, genericodes map[string]map[string]ent.Genericode) (ent.InvoiceType, error) {

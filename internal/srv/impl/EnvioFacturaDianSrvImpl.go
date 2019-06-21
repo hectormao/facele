@@ -20,12 +20,9 @@ import (
 	"github.com/hectormao/facele/pkg/ent"
 	"github.com/hectormao/facele/pkg/repo"
 	facturaSoap "github.com/hectormao/facele/pkg/soap"
-	"github.com/hectormao/facele/pkg/ssl"
 	"github.com/hectormao/facele/pkg/trns"
 	soap "github.com/hooklift/gowsdl/soap"
 	"github.com/satori/go.uuid"
-
-	"github.com/hectormao/facele/internal/srv"
 
 	"io/ioutil"
 )
@@ -34,7 +31,6 @@ type EnvioFacturaDianSrvImpl struct {
 	Repo                 repo.FacturaRepo
 	ColaEnvioRepo        repo.ColaEnvioRepo
 	ColaNotificacionRepo repo.ColaNotificacionRepo
-	GenericodeSrv        srv.GenericodeSrv
 	Config               cfg.FaceleConfigType
 	FacturaTrns          trns.FacturaDianTrns
 }
@@ -43,10 +39,6 @@ var NoResolucionesError error = errors.New("Resolucion Activa no existente")
 
 func (srv EnvioFacturaDianSrvImpl) IniciarConsumidorCola() error {
 	facturasAEnviar, err := srv.ColaEnvioRepo.GetFacturasAEnviar()
-	if err != nil {
-		return err
-	}
-	generiCodes, err := srv.GenericodeSrv.getGenericodes()
 	if err != nil {
 		return err
 	}
@@ -96,7 +88,7 @@ func (srv EnvioFacturaDianSrvImpl) IniciarConsumidorCola() error {
 
 		service := facturaSoap.NewFacturaElectronicaPortName(client)
 
-		var nit facturaSoap.NitType = facturaSoap.NitType(factura.CabezaFactura.NumeroIdentificacion)
+		var nit facturaSoap.NitType = facturaSoap.NitType(factura.CabezaFactura.Nit)
 		var numeroFactura facturaSoap.InvoiceNumberType = facturaSoap.InvoiceNumberType(
 			resolucion.Prefijo + strconv.Itoa(factura.CabezaFactura.Consecutivo),
 		)
@@ -154,7 +146,7 @@ func (srv EnvioFacturaDianSrvImpl) construirDocumentoElectronico(factura ent.Fac
 
 	zipBytes, err := crearZip(
 		data,
-		factura.CabezaFactura.NumeroIdentificacion,
+		factura.CabezaFactura.Nit,
 		strconv.Itoa(factura.CabezaFactura.Consecutivo),
 	)
 	if err != nil {

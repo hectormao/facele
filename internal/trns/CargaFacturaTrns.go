@@ -19,7 +19,6 @@ import (
 )
 
 type cargaFacturaRequest struct {
-	Empresa       string `json:"empresa"`
 	NombreArchivo string `json:"nombre_archivo"`
 	Contenido     []byte `json:"contenido"`
 }
@@ -44,9 +43,6 @@ func decodeCargaFacturaRequest(_ context.Context, r *http.Request) (interface{},
 
 	r.ParseMultipartForm(32 << 20)
 
-	empresa := r.Header.Get("X-Empresa")
-	log.Printf("%v", empresa)
-
 	archivo, handler, err := r.FormFile("archivo")
 	if err != nil {
 		log.Printf("%v", err)
@@ -61,7 +57,6 @@ func decodeCargaFacturaRequest(_ context.Context, r *http.Request) (interface{},
 	}
 
 	request := cargaFacturaRequest{
-		Empresa:       empresa,
 		NombreArchivo: handler.Filename,
 		Contenido:     data,
 	}
