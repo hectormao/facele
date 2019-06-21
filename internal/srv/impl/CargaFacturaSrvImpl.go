@@ -21,11 +21,7 @@ var NombreArchivoInvalido = errors.New("Nombre Archivo invalido")
 var ContenidoNulo = errors.New("Sin contenido")
 var EmpresaInvalida = errors.New("Numero documento empresa invalido")
 
-func (srv CargaFacturaSrvImpl) Cargar(documentoEmpresa string, nombreArchivo string, content []byte) (string, error) {
-	if documentoEmpresa == "" {
-		return "", ClienteInvalido
-	}
-
+func (srv CargaFacturaSrvImpl) Cargar(nombreArchivo string, content []byte) (string, error) {
 	if nombreArchivo == "" {
 		return "", NombreArchivoInvalido
 	}
@@ -34,7 +30,14 @@ func (srv CargaFacturaSrvImpl) Cargar(documentoEmpresa string, nombreArchivo str
 		return "", ContenidoNulo
 	}
 
-	empresa, err := srv.Repo.GetEmpresa(documentoEmpresa)
+	factura := ent.FacturaType{}
+	xmlErr := xml.Unmarshal(content, &factura)
+
+	if xmlErr != nil {
+		return "", xmlErr
+	}
+
+	empresa, err := srv.Repo.GetEmpresa(factura.CabezaFactura.Nit)
 
 	if err != nil {
 		return "", err
@@ -45,13 +48,6 @@ func (srv CargaFacturaSrvImpl) Cargar(documentoEmpresa string, nombreArchivo str
 	}
 
 	log.Printf("Se obtiene la empresa: %v", empresa)
-
-	factura := ent.FacturaType{}
-	xmlErr := xml.Unmarshal(content, &factura)
-
-	if xmlErr != nil {
-		return "", xmlErr
-	}
 
 	factura.EmpresaID = empresa.ObjectId.Hex()
 

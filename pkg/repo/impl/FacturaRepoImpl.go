@@ -150,13 +150,16 @@ func (repo FacturaRepoImpl) GetEmpresaPorId(id string) (*ent.EmpresaType, error)
 }
 
 func (repo *FacturaRepoImpl) conectar() error {
-	ctx, _ := context.WithTimeout(context.Background(), repo.Config.getTimeout()*time.Second)
-	client, err := mongo.Connect(ctx, repo.Config.getURL())
+
+	timeout := time.Duration(repo.Config.GetTimeout())
+
+	ctx, _ := context.WithTimeout(context.Background(), timeout*time.Second)
+	client, err := mongo.Connect(ctx, repo.Config.GetURL())
 	if err != nil {
 		return err
 	}
 
-	database := client.Database(repo.Config.getDatabase())
+	database := client.Database(repo.Config.GetDatabase())
 
 	repo.db = database
 	repo.client = client

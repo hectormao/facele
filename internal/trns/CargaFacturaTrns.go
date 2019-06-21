@@ -31,7 +31,7 @@ type cargaFacturaResponse struct {
 func crearCargarFacturaEndpoint(cargaFacturaSrv srv.CargaFacturaSrv) endpoint.Endpoint {
 	return func(_ context.Context, request interface{}) (interface{}, error) {
 		req := request.(cargaFacturaRequest)
-		id, err := cargaFacturaSrv.Cargar(req.Empresa, req.NombreArchivo, req.Contenido)
+		id, err := cargaFacturaSrv.Cargar(req.NombreArchivo, req.Contenido)
 		if err != nil {
 			return cargaFacturaResponse{"", err.Error()}, err
 		}

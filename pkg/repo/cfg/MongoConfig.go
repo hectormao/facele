@@ -1,7 +1,7 @@
 package cfg
 
 type MongoConfig interface {
-	getURL() string
-	getDatabase() string
-	getTimeout() int
+	GetURL() string
+	GetDatabase() string
+	GetTimeout() int
 }
