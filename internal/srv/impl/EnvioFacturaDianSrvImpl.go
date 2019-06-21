@@ -135,6 +135,8 @@ func (srv EnvioFacturaDianSrvImpl) IniciarConsumidorCola() error {
 
 func (srv EnvioFacturaDianSrvImpl) construirDocumentoElectronico(factura ent.FacturaType, resolucion ent.ResolucionFacturacionType) ([]byte, string, error) {
 
+	invoice, err := srv.FacturaTrns.FacturaToInvoice(factura, resolucion)
+
 	data, err := xml.Marshal(invoice)
 	if err != nil {
 		return nil, "", err

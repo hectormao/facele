@@ -10,8 +10,6 @@ import (
 	"github.com/hectormao/facele/pkg/ent"
 	repoCfg "github.com/hectormao/facele/pkg/repo/cfg"
 
-	"github.com/hectormao/facele/pkg/cfg"
-	"github.com/hectormao/facele/pkg/trns"
 	"github.com/mongodb/mongo-go-driver/bson"
 	"github.com/mongodb/mongo-go-driver/bson/objectid"
 	"github.com/mongodb/mongo-go-driver/mongo"
