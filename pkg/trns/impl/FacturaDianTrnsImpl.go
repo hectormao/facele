@@ -14,9 +14,9 @@ import (
 type FacturaDianTrnsImpl struct {
 }
 
-func (trns FacturaDianTrnsImpl) FacturaToInvoice(factura ent.FacturaType, resolucion ent.ResolucionFacturacionType, vendedor ent.EmpresaType, genericodes map[string]map[string]ent.Genericode) (ent.InvoiceType, error) {
+func (trns FacturaDianTrnsImpl) FacturaToInvoice(factura ent.FacturaType, resolucion ent.ResolucionFacturacionType, vendedor ent.EmpresaType) (ent.InvoiceType, error) {
 
-	invoice, err := trns.newInvoice(factura, vendedor, resolucion, genericodes)
+	invoice, err := trns.newInvoice(factura, vendedor, resolucion)
 	if err != nil {
 		return ent.InvoiceType{}, err
 	}
@@ -31,7 +31,7 @@ func (trns FacturaDianTrnsImpl) FacturaToInvoice(factura ent.FacturaType, resolu
 	return invoice, nil
 }
 
-func (trns FacturaDianTrnsImpl) newInvoice(factura ent.FacturaType, vendedor ent.EmpresaType, resolucion ent.ResolucionFacturacionType, genericodes map[string]map[string]ent.Genericode) (ent.InvoiceType, error) {
+func (trns FacturaDianTrnsImpl) newInvoice(factura ent.FacturaType, vendedor ent.EmpresaType, resolucion ent.ResolucionFacturacionType) (ent.InvoiceType, error) {
 
 	impuestosFactura := trns.getImpuestosFactura(factura)
 	totalImpuesto := trns.calcularTotalImpuestos(impuestosFactura)
@@ -58,7 +58,7 @@ func (trns FacturaDianTrnsImpl) newInvoice(factura ent.FacturaType, vendedor ent
 						ent.ListAgencyID,
 						ent.ListAgencyName,
 						ent.CountrySchemeURI,
-						factura.CabezaFactura.Pais,
+						vendedor.Ubicacion.Pais.Codigo,
 					),
 				},
 				SoftwareProvider: ent.SoftwareProviderType{
@@ -111,10 +111,10 @@ func (trns FacturaDianTrnsImpl) newInvoice(factura ent.FacturaType, vendedor ent
 		IssueDate:            ent.InvoiceDate{ent.InvoiceDateFormat, factura.CabezaFactura.FechaFacturacion},
 		IssueTime:            ent.InvoiceDate{ent.InvoiceTimeFormat, factura.CabezaFactura.FechaFacturacion},
 		InvoiceTypeCode:      strconv.Itoa(factura.CabezaFactura.TipoDocumento),
-		Note:                 factura.CabezaFactura.Observaciones,
-		TaxPointDate:         ent.InvoiceDate{ent.InvoiceDateFormat, factura.CabezaFactura.FechaVencimiento},
-		DocumentCurrencyCode: factura.CabezaFactura.Moneda,
-		LineCountNumeric:     len(factura.CabezaFactura.ListaDetalles.Detalles),
+		Note:                 trns.getCampoAdicionalPorNombre(factura, "OBSERVACIONES"),
+		TaxPointDate:         ent.InvoiceDate{ent.InvoiceDateFormat, factura.CabezaFactura.Pago.FechaVencimiento},
+		DocumentCurrencyCode: factura.CabezaFactura.Pago.Moneda,
+		LineCountNumeric:     len(factura.CabezaFactura.ListaDetalles),
 		OrderReference: ent.ReferenceType{
 			ID: idFactura,
 		},
@@ -143,7 +143,7 @@ func (trns FacturaDianTrnsImpl) newInvoice(factura ent.FacturaType, vendedor ent
 					Address: ent.AddressType{
 						ID:                   "",
 						CityName:             "",
-						CountrySubentity:     factura.CabezaFactura.Ciudad,
+						CountrySubentity:     vendedor.Ubicacion,
 						CountrySubentityCode: "",
 						AddressLine: ent.AddressLineType{
 							Line: []ent.LineType{
@@ -239,6 +239,21 @@ func (trns FacturaDianTrnsImpl) newInvoice(factura ent.FacturaType, vendedor ent
 	}
 
 	return invoice, nil
+}
+
+func (trns FacturaDianTrnsImpl) getCampoAdicionalPorNombre(factura ent.FacturaType, nombreCampo string) string {
+	camposAdicionales := factura.
+		CabezaFactura.
+		ListaCamposAdicionales
+
+	for campo := range camposAdicionales {
+		if campo.NombreCampo == nombreCampo {
+			return campo.ValorCampo
+		}
+	}
+
+	return ""
+
 }
 
 func (trns FacturaDianTrnsImpl) generarSubtotalImpuestos(impuestos map[string]*ent.ImpuestosCabezaType, moneda string) []ent.TaxSubtotalType {
