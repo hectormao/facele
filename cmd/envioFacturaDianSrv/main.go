@@ -9,6 +9,7 @@ import (
 	srvImpl "github.com/hectormao/facele/internal/srv/impl"
 	"github.com/hectormao/facele/pkg/cfg"
 	repo "github.com/hectormao/facele/pkg/repo/impl"
+	trans "github.com/hectormao/facele/pkg/trns/impl"
 )
 
 func main() {
@@ -33,11 +34,13 @@ func main() {
 
 func getServicio(config cfg.FaceleConfigType) srv.EnvioFacturaDianSrv {
 	facturaRepo := repo.FacturaRepoImpl{Config: config.MongoConfig}
-	colaRepo := repo.ColaRepoImpl{Config: config}
+	colaRepo := repo.ColaRepoImpl{Config: config.RabbitConfig}
+	translator := trans.FacturaDianTrnsImpl{}
 	return srvImpl.EnvioFacturaDianSrvImpl{
 		facturaRepo,
 		colaRepo,
 		colaRepo,
 		config,
+		translator,
 	}
 }
