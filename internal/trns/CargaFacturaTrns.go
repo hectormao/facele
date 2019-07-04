@@ -73,7 +73,9 @@ func StartRestAPI(config cfg.FaceleConfigType) {
 	cargaFacturaRepo := repo.FacturaRepoImpl{
 		Config: config.MongoConfig,
 	}
-	colaFacturaRepo := repo.ColaRepoImpl{}
+	colaFacturaRepo := repo.ColaRepoImpl{
+		Config: config.RabbitConfig,
+	}
 	cargaFacturaSrv := srvImpl.CargaFacturaSrvImpl{
 		cargaFacturaRepo,
 		colaFacturaRepo,

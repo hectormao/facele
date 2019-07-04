@@ -33,6 +33,8 @@ func (srv CargaFacturaSrvImpl) Cargar(nombreArchivo string, content []byte) (str
 	factura := ent.FacturaType{}
 	xmlErr := xml.Unmarshal(content, &factura)
 
+	log.Printf("Factura: %v", factura)
+
 	if xmlErr != nil {
 		return "", xmlErr
 	}

@@ -3,15 +3,33 @@ package cfg
 import (
 	"io/ioutil"
 
+	repo "github.com/hectormao/facele/pkg/repo/cfg"
 	"gopkg.in/yaml.v2"
 )
 
 type FaceleConfigType struct {
-	WebServer         WebServerType     `yaml:"webServer"`
-	MongoConfig       MongoConfigType   `yaml:"mongoConfig"`
-	WebServiceDian    WebServerDianType `yaml:"webServiceDian"`
-	EnvioDianQueue    QueueType         `yaml:"envioDianQueue"`
-	NotificacionQueue QueueType         `yaml:"notificacionQueue"`
+	WebServer      WebServerType     `yaml:"webserver"`
+	MongoConfig    MongoConfigType   `yaml:"mongo_config"`
+	WebServiceDian WebServerDianType `yaml:"webservice_dian"`
+	RabbitConfig   RabbitConfigType  `yaml:"rabbit_config"`
+}
+
+type RabbitConfigType struct {
+	Url               string    `yaml:"url"`
+	EnvioDianQueue    QueueType `yaml:"envio_dian_queue"`
+	NotificacionQueue QueueType `yaml:"notificacion_queue"`
+}
+
+func (cfg RabbitConfigType) GetUrl() string {
+	return cfg.Url
+}
+
+func (cfg RabbitConfigType) GetEnvioDianQueue() repo.QueueConfig {
+	return cfg.EnvioDianQueue
+}
+
+func (cfg RabbitConfigType) GetNotificacionQueue() repo.QueueConfig {
+	return cfg.NotificacionQueue
 }
 
 type WebServerDianType struct {
@@ -44,6 +62,10 @@ func (cfg MongoConfigType) GetTimeout() int {
 
 type QueueType struct {
 	Name string `yaml:"name"`
+}
+
+func (cfg QueueType) GetName() string {
+	return cfg.Name
 }
 
 func CargarConfig(configPath string) (FaceleConfigType, error) {

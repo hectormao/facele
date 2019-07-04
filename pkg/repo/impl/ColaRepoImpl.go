@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/hectormao/facele/pkg/cfg"
 	"github.com/hectormao/facele/pkg/ent"
+	repoCfg "github.com/hectormao/facele/pkg/repo/cfg"
 	"github.com/streadway/amqp"
 )
 
@@ -18,11 +18,11 @@ const (
 )
 
 type ColaRepoImpl struct {
+	Config            repoCfg.RabbitConfig
 	connection        *amqp.Connection
 	channel           *amqp.Channel
 	queueEnvio        amqp.Queue
 	queueNotificacion amqp.Queue
-	Config            cfg.FaceleConfigType
 }
 
 func (cola ColaRepoImpl) AgregarEnColaEnvioFacturas(factura ent.FacturaType) error {
@@ -126,7 +126,7 @@ func (cola ColaRepoImpl) terminar() error {
 
 func (cola *ColaRepoImpl) conectar() error {
 
-	conn, err := amqp.Dial("amqp://guest:guest@172.17.0.2:5672/")
+	conn, err := amqp.Dial(cola.Config.GetUrl())
 	if err != nil {
 		return err
 	}
@@ -138,7 +138,9 @@ func (cola *ColaRepoImpl) conectar() error {
 	cola.channel = ch
 
 	queueEnvio, err := ch.QueueDeclare(
-		ColaEnvio,
+		cola.Config.
+			GetEnvioDianQueue().
+			GetName(),
 		true,
 		false,
 		false,
@@ -153,7 +155,9 @@ func (cola *ColaRepoImpl) conectar() error {
 	log.Printf("Declarando Cola: %v", cola.queueEnvio)
 
 	queueNotificacion, err := ch.QueueDeclare(
-		ColaNotificacion,
+		cola.Config.
+			GetNotificacionQueue().
+			GetName(),
 		true,
 		false,
 		false,
