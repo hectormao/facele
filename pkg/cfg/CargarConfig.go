@@ -30,15 +30,15 @@ type MongoConfigType struct {
 	Database string `yaml:"database"`
 }
 
-func (cfg MongoConfigType) getURL() string {
+func (cfg MongoConfigType) GetURL() string {
 	return cfg.URL
 }
 
-func (cfg MongoConfigType) getDatabase() string {
+func (cfg MongoConfigType) GetDatabase() string {
 	return cfg.Database
 }
 
-func (cfg MongoConfigType) getTimeout() int {
+func (cfg MongoConfigType) GetTimeout() int {
 	return cfg.Timeout
 }
 

@@ -70,7 +70,9 @@ func encodeHelloWorldResponse(_ context.Context, w http.ResponseWriter, response
 
 func StartRestAPI(config cfg.FaceleConfigType) {
 	log.Printf("Starting Web Server")
-	cargaFacturaRepo := repo.FacturaRepoImpl{}
+	cargaFacturaRepo := repo.FacturaRepoImpl{
+		Config: config.MongoConfig,
+	}
 	colaFacturaRepo := repo.ColaRepoImpl{}
 	cargaFacturaSrv := srvImpl.CargaFacturaSrvImpl{
 		cargaFacturaRepo,

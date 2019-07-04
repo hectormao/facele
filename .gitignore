@@ -7,3 +7,4 @@ cmd/envioFacturaDianSrv/envioFacturaDianSrv.debug
 cmd/notificarFacturaSrv/notificarFacturaSrv
 cmd/notificarFacturaSrv/notificarFacturaSrv.debug
 vendor/
+*.debug
