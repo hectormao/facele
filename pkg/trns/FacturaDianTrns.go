@@ -5,5 +5,5 @@ import (
 )
 
 type FacturaDianTrns interface {
-	FacturaToInvoice(factura ent.FacturaType, resolucion ent.ResolucionFacturacionType) (ent.InvoiceType, error)
+	FacturaToInvoice(factura ent.FacturaType) (ent.InvoiceType, error)
 }

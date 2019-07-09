@@ -9,14 +9,20 @@ import (
 
 	"github.com/hectormao/facele/pkg/ent"
 	"github.com/hectormao/facele/pkg/ssl"
+	trnsConfig "github.com/hectormao/facele/pkg/trns/cfg"
+
+	"log"
+	"text/template"
 )
 
 type FacturaDianTrnsImpl struct {
+	Config      trnsConfig.FacturaDianTrnsConfig
+	URLTemplate *template.Template
 }
 
-func (trns FacturaDianTrnsImpl) FacturaToInvoice(factura ent.FacturaType, resolucion ent.ResolucionFacturacionType, vendedor ent.EmpresaType) (ent.InvoiceType, error) {
+func (trns FacturaDianTrnsImpl) FacturaToInvoice(factura ent.FacturaType) (ent.InvoiceType, error) {
 
-	invoice, err := trns.newInvoice(factura, vendedor, resolucion)
+	invoice, err := trns.newInvoice(factura)
 	if err != nil {
 		return ent.InvoiceType{}, err
 	}
@@ -31,12 +37,15 @@ func (trns FacturaDianTrnsImpl) FacturaToInvoice(factura ent.FacturaType, resolu
 	return invoice, nil
 }
 
-func (trns FacturaDianTrnsImpl) newInvoice(factura ent.FacturaType, vendedor ent.EmpresaType, resolucion ent.ResolucionFacturacionType) (ent.InvoiceType, error) {
+func (trns FacturaDianTrnsImpl) newInvoice(factura ent.FacturaType) (ent.InvoiceType, error) {
 
 	impuestosFactura := trns.getImpuestosFactura(factura)
 	totalImpuesto := trns.calcularTotalImpuestos(impuestosFactura)
 
 	idFactura := resolucion.Prefijo + strconv.Itoa(factura.CabezaFactura.Consecutivo)
+
+	cufe := trns.generarCodigoCUFE(factura, impuestosFactura)
+	factura.Cufe = cufe
 
 	ublExtension := ent.UBLExtensionType{
 		ExtensionContent: ent.ExtensionContentType{
@@ -44,13 +53,13 @@ func (trns FacturaDianTrnsImpl) newInvoice(factura ent.FacturaType, vendedor ent
 				InvoiceControl: ent.InvoiceControlType{
 					InvoiceAuthorization: resolucion.Numero,
 					AuthorizationPeriod: ent.AuthorizationPeriodType{
-						StartDate: ent.InvoiceDate{ent.InvoiceDateFormat, resolucion.Vigencia.Desde},
-						EndDate:   ent.InvoiceDate{ent.InvoiceDateFormat, resolucion.Vigencia.Hasta},
+						StartDate: ent.InvoiceDate{ent.InvoiceDateFormat, factura.Resolucion.Vigencia.Desde},
+						EndDate:   ent.InvoiceDate{ent.InvoiceDateFormat, factura.Resolucion.Vigencia.Hasta},
 					},
 					AuthorizedInvoices: ent.AuthorizedInvoicesType{
-						Prefix: resolucion.Prefijo,
-						From:   resolucion.Rango.Inferior,
-						To:     resolucion.Rango.Superior,
+						Prefix: factura.Resolucion.Prefijo,
+						From:   factura.Resolucion.Rango.Inferior,
+						To:     factura.Resolucion.Rango.Superior,
 					},
 				},
 				InvoiceSource: ent.InvoiceSourceType{
@@ -58,7 +67,7 @@ func (trns FacturaDianTrnsImpl) newInvoice(factura ent.FacturaType, vendedor ent
 						ent.ListAgencyID,
 						ent.ListAgencyName,
 						ent.CountrySchemeURI,
-						vendedor.Ubicacion.Pais.Codigo,
+						factura.Empresa.Ubicacion.Pais.Codigo,
 					),
 				},
 				SoftwareProvider: ent.SoftwareProviderType{
@@ -78,9 +87,16 @@ func (trns FacturaDianTrnsImpl) newInvoice(factura ent.FacturaType, vendedor ent
 				SoftwareSecurityCode: trns.newSoftwareSecurityCode(
 					ent.AgencyID,
 					ent.AgencyName,
-					resolucion.ClaveTecnica,
+					factura.Resolucion.ClaveTecnica,
 				),
-				AuthorizationProvider: ent.AuthorizationProviderType{},
+				AuthorizationProvider: trns.newAuthorizationProviderID(
+					ent.AgencyID,
+					ent.AgencyName,
+					ent.SchemeID4,
+					ent.SchemeName,
+					factura.Empresa.NumeroDocumento,
+				),
+				QRCode: trns.qrCodeURL(factura),
 			},
 		},
 	}
@@ -106,10 +122,11 @@ func (trns FacturaDianTrnsImpl) newInvoice(factura ent.FacturaType, vendedor ent
 		UUID: trns.newUUID(
 			"2",
 			"CUFE-SHA256",
-			trns.generarCodigoCUFE(resolucion, factura, impuestosFactura),
+			cufe,
 		),
 		IssueDate:            ent.InvoiceDate{ent.InvoiceDateFormat, factura.CabezaFactura.FechaFacturacion},
 		IssueTime:            ent.InvoiceDate{ent.InvoiceTimeFormat, factura.CabezaFactura.FechaFacturacion},
+		DueDate:              ent.InvoiceDate{ent.InvoiceTimeFormat, factura.CabezaFactura.Pago.FechaVencimiento},
 		InvoiceTypeCode:      strconv.Itoa(factura.CabezaFactura.TipoDocumento),
 		Note:                 trns.getCampoAdicionalPorNombre(factura, "OBSERVACIONES"),
 		TaxPointDate:         ent.InvoiceDate{ent.InvoiceDateFormat, factura.CabezaFactura.Pago.FechaVencimiento},
@@ -131,20 +148,20 @@ func (trns FacturaDianTrnsImpl) newInvoice(factura ent.FacturaType, vendedor ent
 		AccountingSupplierParty: ent.AccountingSupplierPartyType{
 			AdditionalAccountID: ent.IDType{
 				SchemeAgencyID: ent.AgencyID,
-				Data:           vendedor.Tipo,
+				Data:           factura.Empresa.Tipo,
 			},
 			Party: ent.PartyType{
 				PartyName: []ent.PartyNameType{
 					ent.PartyNameType{
-						Name: vendedor.RazonSocial,
+						Name: factura.Empresa.RazonSocial,
 					},
 				},
 				PhysicalLocation: ent.PhysicalLocationType{
 					Address: ent.AddressType{
-						ID:                   "",
-						CityName:             "",
-						CountrySubentity:     vendedor.Ubicacion,
-						CountrySubentityCode: "",
+						ID:                   factura.Empresa.Ubicacion.Municipio.Codigo,
+						CityName:             factura.Empresa.Ubicacion.Municipio.Nombre,
+						CountrySubentity:     factura.Empresa.Ubicacion.Departamento.Nombre,
+						CountrySubentityCode: factura.Empresa.Ubicacion.Departamento.Codigo,
 						AddressLine: ent.AddressLineType{
 							Line: []ent.LineType{
 								ent.LineType{
@@ -153,19 +170,68 @@ func (trns FacturaDianTrnsImpl) newInvoice(factura ent.FacturaType, vendedor ent
 							},
 						},
 						Country: ent.CountryType{
-							IdentificationCode: vendedor.Ubicacion.Pais,
-							Name:               "",
+							IdentificationCode: factura.Empresa.Ubicacion.Pais.Codigo,
+							Name:               factura.Empresa.Ubicacion.Pais.Nombre,
 						},
 					},
 				},
 				PartyTaxScheme: ent.PartyTaxSchemeType{
-					RegistrationName: vendedor.RazonSocial,
+					RegistrationName: factura.Empresa.RazonSocial,
+					CompanyID : trns.newID(
+						ent.AgencyID,
+						ent.AgencyName,
+						ent.SchemeID,
+						ent.SchemeName,
+						factura.Empresa.NumeroDocumento,
+					),
+					TaxLevelCode : ent.TaxLevelCodeType {
+						ent.ListName,
+						"0-11"
+					},
+					RegistrationAddress : ent.AddressType{
+						ID:                   factura.Empresa.Ubicacion.Municipio.Codigo,
+						CityName:             factura.Empresa.Ubicacion.Municipio.Nombre,
+						CountrySubentity:     factura.Empresa.Ubicacion.Departamento.Nombre,
+						CountrySubentityCode: factura.Empresa.Ubicacion.Departamento.Codigo,
+						AddressLine: ent.AddressLineType{
+							Line: []ent.LineType{
+								ent.LineType{
+									Data: vendedor.Ubicacion.Direccion,
+								},
+							},
+						},
+						Country: ent.CountryType{
+							IdentificationCode: factura.Empresa.Ubicacion.Pais.Codigo,
+							Name:               factura.Empresa.Ubicacion.Pais.Nombre,
+						},
+					},
+					TaxScheme : ent.NameType {
+						ID : "01",
+						Name: "IVA",
+					}
 				},
 				PartyLegalEntity: ent.PartyLegalEntityType{
-					RegistrationName: vendedor.RazonSocial,
+					RegistrationName: factura.Empresa.RazonSocial,
+					CompanyID : trns.newID(
+						ent.AgencyID,
+						ent.AgencyName,
+						ent.SchemeID,
+						ent.SchemeName,
+						factura.Empresa.NumeroDocumento,
+					),
+					CorporateRegistrationScheme : ent.NameType {
+						ID : "BC",
+						Name: "12345",
+					}
+				},
+				Contact : ent.ContactType{
+					Telephone : factura.Empresa.Contacto.Telefonos[0],
+					ElectronicMail : factura.Empresa.Contacto.Correos[0],
+					
 				},
 			},
 		},
+		//AQUI !!!
 		AccountingCustomerParty: ent.AccountingCustomerPartyType{
 			AdditionalAccountID: ent.IDType{
 				Data: strconv.Itoa(factura.CabezaFactura.TipoPersona),
@@ -240,6 +306,25 @@ func (trns FacturaDianTrnsImpl) newInvoice(factura ent.FacturaType, vendedor ent
 
 	return invoice, nil
 }
+func (trns *FacturaDianTrnsImpl) qrCodeURL(factura ent.FacturaType) string {
+	if trns.URLTemplate == nil {
+		rawUrl := trns.Config.GetQRCodeUrl()
+		trns.URLTemplate, err = template.New("URLQRCode").Parse(rawUrl)
+		if err != nil {
+			log.Printf("Error al parsear URL QRCODE %v", err)
+			trns.URLTemplate = nil
+			return ""
+		}
+	}
+	buf := new(bytes.Buffer)
+	err := trns.URLTemplate.Execute(buf, factura)
+	if err != nil {
+		log.Printf("Error al parsear URL QRCODE (ejecutando template) %v", err)
+		return ""
+	}
+
+	return buf.String()
+}
 
 func (trns FacturaDianTrnsImpl) getCampoAdicionalPorNombre(factura ent.FacturaType, nombreCampo string) string {
 	camposAdicionales := factura.
@@ -284,7 +369,7 @@ func (trns FacturaDianTrnsImpl) generarSubtotalImpuestos(impuestos map[string]*e
 
 }
 
-func (trns FacturaDianTrnsImpl) generarCodigoCUFE(resolucion ent.ResolucionFacturacionType, factura ent.FacturaType, impuestos map[string]*ent.ImpuestosCabezaType) string {
+func (trns FacturaDianTrnsImpl) generarCodigoCUFE(factura ent.FacturaType, impuestos map[string]*ent.ImpuestosCabezaType) string {
 
 	fechaFormato := "20060102150405"
 
@@ -310,7 +395,7 @@ func (trns FacturaDianTrnsImpl) generarCodigoCUFE(resolucion ent.ResolucionFactu
 		valorImpuesto03 = impuesto03.ValorImpuestoRetencion
 	}
 
-	numeroFactura := resolucion.Prefijo + strconv.Itoa(factura.CabezaFactura.Consecutivo)
+	numeroFactura := factura.Resolucion.Prefijo + strconv.Itoa(factura.CabezaFactura.Consecutivo)
 	fechaFactura := factura.CabezaFactura.FechaFacturacion.Format(fechaFormato)
 	valorFactura := fmt.Sprintf("%.2f", factura.CabezaFactura.TotalImporteBruto)
 	codImp1 := "01"
@@ -323,7 +408,7 @@ func (trns FacturaDianTrnsImpl) generarCodigoCUFE(resolucion ent.ResolucionFactu
 	nitOFE := factura.CabezaFactura.NumeroIdentificacion
 	tipAdq := strconv.Itoa(factura.CabezaFactura.TipoPersona)
 	numAdq := factura.CabezaFactura.Nit
-	ciTec := resolucion.ClaveTecnica
+	ciTec := factura.Resolucion.ClaveTecnica
 
 	var buffer bytes.Buffer
 	buffer.WriteString(numeroFactura)
@@ -459,6 +544,21 @@ func (trns FacturaDianTrnsImpl) newIdentificationCode(
 	return v
 }
 
+func (trns FacturaDianTrnsImpl) newID(
+	schemeAgencyID string,
+	schemeAgencyName string,
+	schemeID string,
+	schemeName string,
+	data string) ent.IDType {
+	v := ent.IDType{}
+	v.SchemeAgencyID = schemeAgencyID
+	v.SchemeAgencyName = schemeAgencyName
+	v.SchemeID = schemeID
+	v.SchemeName = schemeName
+	v.Data = data
+	return v
+}
+
 func (trns FacturaDianTrnsImpl) newProviderID(
 	schemeAgencyID string,
 	schemeAgencyName string,
@@ -494,6 +594,23 @@ func (trns FacturaDianTrnsImpl) newSoftwareSecurityCode(
 	v.SchemeAgencyName = schemeAgencyName
 	v.Data = data
 	return v
+}
+
+func (trns FacturaDianTrnsImpl) newAuthorizationProviderID(
+	schemeAgencyID string,
+	schemeAgencyName string,
+	schemeID string,
+	schemeName string,
+	data string) ent.AuthorizationProviderType {
+	v := ent.AuthorizationProviderIDType{}
+	v.SchemeAgencyID = schemeAgencyID
+	v.SchemeAgencyName = schemeAgencyName
+	v.SchemeID = schemeID
+	v.SchemeName = schemeName
+	v.Data = data
+	return ent.AuthorizationProviderType{
+		AuthorizationProviderID: v,
+	}
 }
 
 func (trns FacturaDianTrnsImpl) newUUID(

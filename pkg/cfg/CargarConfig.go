@@ -33,7 +33,12 @@ func (cfg RabbitConfigType) GetNotificacionQueue() repo.QueueConfig {
 }
 
 type WebServerDianType struct {
-	Url string `yaml:"url"`
+	Url       string `yaml:"url"`
+	QRCodeUrl string `yaml:"qrcode_url"`
+}
+
+func (cfg WebServerDianType) GetQRCodeUrl() string {
+	return cfg.QRCodeUrl
 }
 
 type WebServerType struct {

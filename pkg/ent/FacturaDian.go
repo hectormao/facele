@@ -26,6 +26,7 @@ const (
 	AgencyID           string = "195"
 	AgencyName         string = "CO, DIAN (Direccion de Impuestos y Aduanas Nacionales)"
 	SchemeID           string = "9"
+	SchemeID4          string = "9"
 	SchemeName         string = "31"
 	UBLVersion         string = "UBL 2.1"
 	Customization      string = "1"
@@ -33,6 +34,7 @@ const (
 	ProfileExecution   string = "2"
 	ListAgencyID       string = "6"
 	ListAgencyName     string = "United Nations Economic Commission for Europe"
+	ListName           string = "05"
 )
 
 func (invoice *InvoiceType) AgregarExtension(extension interface{}) {

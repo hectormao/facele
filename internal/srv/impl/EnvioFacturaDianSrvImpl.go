@@ -61,7 +61,8 @@ func (srv EnvioFacturaDianSrvImpl) IniciarConsumidorCola() error {
 
 		idEmpresa := factura.EmpresaID
 		log.Printf("idEmpresa: %v", idEmpresa)
-		documentoElectronico, cufe, err := srv.construirDocumentoElectronico(factura, *resolucion)
+		factura.Resolucion = *resolucion
+		documentoElectronico, cufe, err := srv.construirDocumentoElectronico(factura)
 
 		if err != nil {
 			log.Printf("Error al construir documento electronico: %v", err)
@@ -133,9 +134,9 @@ func (srv EnvioFacturaDianSrvImpl) IniciarConsumidorCola() error {
 	return nil
 }
 
-func (srv EnvioFacturaDianSrvImpl) construirDocumentoElectronico(factura ent.FacturaType, resolucion ent.ResolucionFacturacionType) ([]byte, string, error) {
+func (srv EnvioFacturaDianSrvImpl) construirDocumentoElectronico(factura ent.FacturaType) ([]byte, string, error) {
 
-	invoice, err := srv.FacturaTrns.FacturaToInvoice(factura, resolucion)
+	invoice, err := srv.FacturaTrns.FacturaToInvoice(factura)
 
 	data, err := xml.Marshal(invoice)
 	if err != nil {

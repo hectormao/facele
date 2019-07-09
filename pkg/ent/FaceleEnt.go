@@ -22,12 +22,13 @@ type EmpresaType struct {
 }
 
 type FacturaType struct {
-	XMLName       xml.Name          `xml:"listaDocumentos" bson:"-" json:"-"`
-	CabezaFactura CabezaFacturaType `xml:"cabezaDocumento" bson:"cabeza_documento" json:"cabeza_documento"`
-	EmpresaID     string            `xml:"-" bson:"_empresa_id" json:"_empresa_id"`
-	Empresa       EmpresaType       `xml:"-" bson:"-" json:"_empresa"`
-	ObjectId      string            `xml:"-" bson:"-" json:"_id"`
-	Cufe          string            `xml:"-" bson:"-" json:"_cufe"`
+	XMLName       xml.Name                  `xml:"listaDocumentos" bson:"-" json:"-"`
+	CabezaFactura CabezaFacturaType         `xml:"cabezaDocumento" bson:"cabeza_documento" json:"cabeza_documento"`
+	EmpresaID     string                    `xml:"-" bson:"_empresa_id" json:"_empresa_id"`
+	Empresa       EmpresaType               `xml:"-" bson:"-" json:"_empresa"`
+	ObjectId      string                    `xml:"-" bson:"-" json:"_id"`
+	Cufe          string                    `xml:"-" bson:"-" json:"_cufe"`
+	Resolucion    ResolucionFacturacionType `xml:"-" bson:"-" json:"_resolucion"`
 }
 
 type CabezaFacturaType struct {
