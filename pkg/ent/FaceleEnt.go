@@ -60,6 +60,7 @@ type AdquirienteType struct {
 	Regimen                 string `xml:"regimen" bson:"regimen" json:"regimen"`
 	Email                   string `xml:"Email" bson:"email" json:"email"`
 	Pais                    string `xml:"pais" bson:"pais" json:"pais"`
+	NombrePais              string `xml:"nombrepais" bson:"nombre_pais" json:"nombre_pais"`
 	Departamento            string `xml:"departamento" bson:"departamento" json:"departamento"`
 	NombreDepartamento      string `xml:"nombredepartamento" bson:"nombre_departamento" json:"nombre_departamento"`
 	Ciudad                  string `xml:"ciudad" bson:"ciudad" json:"ciudad"`
@@ -86,6 +87,7 @@ type DetalleType struct {
 	TipoCodigoProducto string               `xml:"tipocodigoproducto" bson:"tipo_codigo_producto" json:"tipo_codigo_producto"`
 	NombreProducto     string               `xml:"nombreProducto" bson:"nombre_producto" json:"nombre_producto"`
 	Descripcion        string               `xml:"descripcion" bson:"descripcion" json:"descripcion"`
+	UnidadMedida       string               `xml:"unidadmedida" bson:"unidad_medida" json:"unidad_medida"`
 	Cantidad           int                  `xml:"Cantidad" bson:"cantidad" json:"cantidad"`
 	ValorUnitario      float64              `xml:"Valorunitario" bson:"valor_unitario" json:"valor_unitario"`
 	PrecioSinImpuestos float64              `xml:"preciosinimpuestos" bson:"precio_sin_impuestos" json:"precio_sin_impuestos"`
@@ -94,6 +96,7 @@ type DetalleType struct {
 	ListaImpuestos     []ImpuestoType       `xml:"listaImpuestos>Impuesto" bson:"lista_impuestos" json:"lista_impuestos"`
 	ListaCargos        []CargoType          `xml:"listaCargos>Cargo" bson:"lista_cargos" json:"lista_cargos"`
 	ListaAdicionales   []CampoAdicionalType `xml:"listaAdicionales>CampoAdicional" bson:"Lista_adicionales" json:"Lista_adicionales"`
+	CodigoTipo         string               `xml:"codigotipo" bson:"codigo_tipo" json:"codigo_tipo"`
 }
 
 type CampoAdicionalType struct {

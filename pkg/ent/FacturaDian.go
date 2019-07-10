@@ -187,8 +187,8 @@ type AuthorizationProviderIDType struct {
 type InvoiceControlType struct {
 	XMLName              xml.Name                `xml:"sts:InvoiceControl"`
 	InvoiceAuthorization string                  `xml:"sts:InvoiceAuthorization"`
-	AuthorizationPeriod  AuthorizationPeriodType `xml:",omiteempty"`
-	AuthorizedInvoices   AuthorizedInvoicesType  `xml:",omiteempty"`
+	AuthorizationPeriod  AuthorizationPeriodType `xml:",omitempty"`
+	AuthorizedInvoices   AuthorizedInvoicesType  `xml:",omitempty"`
 }
 
 type AuthorizationPeriodType struct {
@@ -199,14 +199,14 @@ type AuthorizationPeriodType struct {
 
 type AuthorizedInvoicesType struct {
 	XMLName xml.Name `xml:"sts:AuthorizedInvoices"`
-	Prefix  string   `xml:sts:Prefix",omiteempty"`
+	Prefix  string   `xml:sts:Prefix",omitempty"`
 	From    int64    `xml:"sts:From"`
 	To      int64    `xml:"sts:To"`
 }
 
 type InvoiceSourceType struct {
 	XMLName            xml.Name               `xml:"sts:InvoiceSource"`
-	IdentificationCode IdentificationCodeType `xml:",omiteempty"`
+	IdentificationCode IdentificationCodeType `xml:",omitempty"`
 }
 
 type CodeType struct {
@@ -237,15 +237,15 @@ type DurationMeasureType struct {
 
 type SoftwareProviderType struct {
 	XMLName    xml.Name       `xml:"sts:SoftwareProvider"`
-	ProviderID ProviderIDType `xml:",omiteempty"`
-	SoftwareID SoftwareIDType `xml:",omiteempty"`
+	ProviderID ProviderIDType `xml:",omitempty"`
+	SoftwareID SoftwareIDType `xml:",omitempty"`
 }
 
 type IDType struct {
-	SchemeAgencyID   string `xml:"schemeAgencyID,attr,omiteempty"`
-	SchemeAgencyName string `xml:"schemeAgencyName,attr,omiteempty"`
-	SchemeID         string `xml:"schemeID,attr,omiteempty"`
-	SchemeName       string `xml:"schemeName,attr,omiteempty"`
+	SchemeAgencyID   string `xml:"schemeAgencyID,attr,omitempty"`
+	SchemeAgencyName string `xml:"schemeAgencyName,attr,omitempty"`
+	SchemeID         string `xml:"schemeID,attr,omitempty"`
+	SchemeName       string `xml:"schemeName,attr,omitempty"`
 	Data             string `xml:",chardata"`
 }
 
@@ -302,7 +302,7 @@ type ContactType struct {
 
 type PartyIdentificationType struct {
 	XMLName xml.Name    `xml:"cac:PartyIdentification"`
-	ID      PartyIDType `xml:",omiteempty"`
+	ID      PartyIDType `xml:",omitempty"`
 }
 
 type PartyNameType struct {
@@ -321,13 +321,13 @@ type AddressType struct {
 	CityName             string          `xml:"cbc:CityName"`
 	CountrySubentity     string          `xml:"cbc:CountrySubentity"`
 	CountrySubentityCode string          `xml:"cbc:CountrySubentityCode"`
-	AddressLine          AddressLineType `xml:",omiteempty"`
-	Country              CountryType     `xml:",omiteempty"`
+	AddressLine          AddressLineType `xml:",omitempty"`
+	Country              CountryType     `xml:",omitempty"`
 }
 
 type AddressLineType struct {
 	XMLName xml.Name   `xml:"cac:AddressLine"`
-	Line    []LineType `xml:",omiteempty"`
+	Line    []LineType `xml:",omitempty"`
 }
 
 type LineType struct {
@@ -398,7 +398,7 @@ type TaxAmountType struct {
 type TaxSubtotalType struct {
 	TaxableAmount AmountType      `xml:"cbc:TaxableAmount"`
 	TaxAmount     AmountType      `xml:"cbc:TaxAmount"`
-	TaxCategory   TaxCategoryType `xml:",omitempty"`
+	TaxCategory   TaxCategoryType `xml:"cac:TaxCategory"`
 }
 
 type TaxableAmountType struct {
@@ -407,7 +407,6 @@ type TaxableAmountType struct {
 }
 
 type TaxCategoryType struct {
-	XMLName   xml.Name `xml:"cac:TaxCategory"`
 	Percent   float64  `xml:"cbc:Percent"`
 	TaxScheme NameType `xml:"cac:TaxScheme"`
 }
@@ -423,15 +422,24 @@ type LegalMonetaryTotalType struct {
 }
 
 type InvoiceLineType struct {
-	XMLName               xml.Name            `xml:"cac:InvoiceLine"`
-	ID                    string              `xml:"cbc:ID"`
-	InvoicedQuantity      QuantityType        `xml:"cbc:InvoicedQuantity"`
-	LineExtensionAmount   AmountType          `xml:"cbc:LineExtensionAmount"`
-	FreeOfChargeIndicator bool                `xml:"cbc:FreeOfChargeIndicator"`
-	AllowanceCharge       AllowanceChargeType `xml:"cac:AllowanceCharge"`
-	TaxTotal              TaxTotalType        `xml:"cac:TaxTotal"`
-	Item                  ItemType            `xml:",omitempty"`
-	Price                 PriceType           `xml:",omitempty"`
+	XMLName               xml.Name             `xml:"cac:InvoiceLine"`
+	ID                    string               `xml:"cbc:ID"`
+	InvoicedQuantity      QuantityType         `xml:"cbc:InvoicedQuantity"`
+	LineExtensionAmount   AmountType           `xml:"cbc:LineExtensionAmount"`
+	FreeOfChargeIndicator bool                 `xml:"cbc:FreeOfChargeIndicator"`
+	PricingReference      PricingReferenceType `xml:"cac:PricingReference"`
+	TaxTotal              TaxTotalType         `xml:"cac:TaxTotal"`
+	Item                  ItemType             `xml:"cac:Item"`
+	Price                 PriceType            `xml:"cac:Price"`
+}
+
+type PricingReferenceType struct {
+	AlternativeConditionPrice AlternativeConditionPriceType `xml:"cac:AlternativeConditionPrice"`
+}
+
+type AlternativeConditionPriceType struct {
+	PriceAmount   AmountType `xml:"cbc:PriceAmount"`
+	PriceTypeCode string     `xml:"cbc:PriceTypeCode"`
 }
 
 type QuantityType struct {
@@ -440,18 +448,19 @@ type QuantityType struct {
 }
 
 type ItemType struct {
-	XMLName     xml.Name `xml:"fe:Item"`
-	Description string   `xml:"cbc:Description"`
+	Description                string             `xml:"cbc:Description"`
+	SellersItemIdentification  IdentificationType `xml:"cac:SellersItemIdentification"`
+	StandardItemIdentification IdentificationType `xml:"cac:StandardItemIdentification"`
+}
+
+type IdentificationType struct {
+	SchemeAgencyName string `xml:"xml:"schemeAgencyName,attr,omitempty""`
+	ID               string `xml:"cbc:ID"`
 }
 
 type PriceType struct {
-	XMLName     xml.Name        `xml:"fe:Price"`
-	PriceAmount PriceAmountType `xml:",omitempty"`
-}
-
-type PriceAmountType struct {
-	XMLName xml.Name `xml:"cbc:PriceAmount"`
-	AmountType
+	PriceAmount  AmountType   `xml:"cbc:PriceAmount"`
+	BaseQuantity QuantityType `xml:cbc:BaseQuantity`
 }
 
 type InvoiceDate struct {
