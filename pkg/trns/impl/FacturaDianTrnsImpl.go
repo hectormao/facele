@@ -149,7 +149,7 @@ func (trns FacturaDianTrnsImpl) newInvoice(factura ent.FacturaType) (ent.Invoice
 				SchemeAgencyID: ent.AgencyID,
 				Data:           factura.Empresa.Tipo,
 			},
-			Party: ent.PartyType{
+			Party: ent.PartySupplierType{
 				PartyName: []ent.PartyNameType{
 					ent.PartyNameType{
 						Name: factura.Empresa.RazonSocial,
@@ -233,7 +233,7 @@ func (trns FacturaDianTrnsImpl) newInvoice(factura ent.FacturaType) (ent.Invoice
 			AdditionalAccountID: ent.IDType{
 				Data: adquirientePrincipal.TipoPersona,
 			},
-			Party: ent.PartyType{
+			Party: ent.PartyCustomerType{
 				PartyName: []ent.PartyNameType{
 					ent.PartyNameType{
 						Name: adquirientePrincipal.NombreCompleto,

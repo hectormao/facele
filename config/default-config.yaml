@@ -4,7 +4,7 @@ webserver:
   method: POST
 webservice_dian:
   url: "https://facturaelectronica.dian.gov.co/habilitacion/B2BIntegrationEngine/FacturaElectronica"
-  qrcode_url : "https://muisca.dian.gov.co/WebFacturaelectronica/paginas/VerificarFacturaElectronicaExterno.faces?TipoDocumento={{.CabezaFactura.TipoDocumento}}={{.Resolucion.Prefijo}}{{.Empresa.NumeroDocumento}}NITFacturador={{.Empresa.NumeroDocumento}}NumIdentAdquiriente={{.CabezaFactura.ListaAdquirentes[0].NumeroIdentificacion}}Cufe={{.Cufe}}"
+  qrcode_url : "https://muisca.dian.gov.co/WebFacturaelectronica/paginas/VerificarFacturaElectronicaExterno.faces?TipoDocumento={{.CabezaFactura.TipoDocumento}}={{.Resolucion.Prefijo}}{{.Empresa.NumeroDocumento}}NITFacturador={{.Empresa.NumeroDocumento}}NumIdentAdquiriente={{(index .CabezaFactura.ListaAdquirentes 0).NumeroIdentificacion}}Cufe={{.Cufe}}"
 mongo_config:
 #  url: "mongodb://root:yTRyg0Zm11@172.17.0.7:27017/?authSource=admin"
   url: "mongodb://172.17.0.3:27017/"
@@ -12,7 +12,7 @@ mongo_config:
   timeout: 10
 rabbit_config:
 #  url: amqp://user:UK7yAQYzcL@10.104.17.26:5672/
-  url: amqp://guest:gest@172.17.0.2:5672/
+  url: amqp://172.17.0.2:5672/
   envio_dian_queue:
     name: enviarFacturaQ 
   notificacion_queue:

@@ -75,22 +75,13 @@ type InvoiceType struct {
 	TaxPointDate                InvoiceDate                     `xml:"cbc:TaxPointDate"`
 	DocumentCurrencyCode        string                          `xml:"cbc:DocumentCurrencyCode"`
 	LineCountNumeric            int                             `xml:"cbc:LineCountNumeric"`
-	InvoicePeriod               InvoicePeriodType               `xml:",omitempty"`
 	OrderReference              ReferenceType                   `xml:"cac:OrderReference,omitempty"`
 	DespatchDocumentReference   ReferenceType                   `xml:"cac:DespatchDocumentReference,omitempty"`
 	ReceiptDocumentReference    ReferenceType                   `xml:"cac:ReceiptDocumentReference,omitempty"`
 	AdditionalDocumentReference AdditionalDocumentReferenceType `xml:"cac:AdditionalDocumentReference,omitempty"`
-	AccountingSupplierParty     AccountingSupplierPartyType     `xml:",omitempty"`
-	AccountingCustomerParty     AccountingCustomerPartyType     `xml:",omitempty"`
-	TaxRepresentativeParty      TaxRepresentativePartyType      `xml:"cac:TaxRepresentativeParty"`
-	Delivery                    DeliveryType                    `xml:"cac:Delivery"`
-	PaymentMeans                PaymentMeansType                `xml:"cac:PaymentMeans"`
-	PaymentTerms                PaymentTermsType                `xml:"cac:PaymentTerms"`
-	AllowanceCharge             []AllowanceChargeType           `xml:"cac:AllowanceCharge"`
-	PaymentExchangeRate         PaymentExchangeRateType         `xml:"cac:PaymentExchangeRate"`
-	TaxTotal                    []TaxTotalType                  `xml:",omitempty"`
-	LegalMonetaryTotal          LegalMonetaryTotalType          `xml:",omitempty"`
-	InvoiceLine                 []InvoiceLineType               `xml:",omitempty"`
+	AccountingSupplierParty     AccountingSupplierPartyType     `xml:"cac:AccountingSupplierParty,omitempty"`
+	AccountingCustomerParty     AccountingCustomerPartyType     `xml:"cac:AccountingCustomerParty,omitempty"`
+	InvoiceLine                 []InvoiceLineType               `xml:"cac:InvoiceLine,omitempty"`
 }
 
 type AdditionalDocumentReferenceType struct {
@@ -98,50 +89,8 @@ type AdditionalDocumentReferenceType struct {
 	DocumentTypeCode string `xml:"cbc:DocumentTypeCode"`
 }
 
-type PaymentExchangeRateType struct {
-	SourceCurrencyCode     string      `xml:"cbc:SourceCurrencyCode"`
-	SourceCurrencyBaseRate float64     `xml:"cbc:SourceCurrencyBaseRate"`
-	TargetCurrencyCode     string      `xml:"cbc:TargetCurrencyCode"`
-	TargetCurrencyBaseRate float64     `xml:"cbc:TargetCurrencyBaseRate"`
-	CalculationRate        float64     `xml:"cbc:CalculationRate"`
-	Date                   InvoiceDate `xml:"cbc:Date"`
-}
-
-type AllowanceChargeType struct {
-	ID                        string     `xml:"cbc:ID"`
-	ChargeIndicator           bool       `xml:"cbc:ChargeIndicator"`
-	AllowanceChargeReasonCode int        `xml:"cbc:AllowanceChargeReasonCode,omitempty"`
-	AllowanceChargeReason     string     `xml:"cbc:AllowanceChargeReason"`
-	MultiplierFactorNumeric   float64    `xml:"cbc:MultiplierFactorNumeric"`
-	Amount                    AmountType `xml:"cbc:Amount"`
-	BaseAmount                AmountType `xml:"cbc:BaseAmount"`
-}
-
-type PaymentTermsType struct {
-	ReferenceEventCode int                  `xml:"cbc:ReferenceEventCode"`
-	SettlementPeriod   SettlementPeriodType `xml:"cac:SettlementPeriod"`
-}
-
 type SettlementPeriodType struct {
 	DurationMeasure DurationMeasureType `xml:",omitempty"`
-}
-
-type PaymentMeansType struct {
-	ID               string      `xml:"cbc:ID"`
-	PaymentMeansCode string      `xml:"cbc:PaymentMeansCode"`
-	PaymentDueDate   InvoiceDate `xml:"cbc:PaymentDueDate"`
-}
-
-type DeliveryType struct {
-	ActualDeliveryDate InvoiceDate `xml:"cbc:ActualDeliveryDate"`
-	ActualDeliveryTime InvoiceDate `xml:"cbc:ActualDeliveryTime"`
-	DeliveryAddress    AddressType `xml:"cac:DeliveryAddress"`
-	DeliveryParty      PartyType   `xml:"cac:DeliveryParty"`
-}
-
-type TaxRepresentativePartyType struct {
-	PartyIdentification IDType   `xml:"cac:PartyIdentification"`
-	PartyName           NameType `xml:"cac:PartyName"`
 }
 
 type ReferenceType struct {
@@ -221,14 +170,6 @@ type IdentificationCodeType struct {
 	CodeType
 }
 
-type InvoicePeriodType struct {
-	XMLName   xml.Name    `xml:"cac:InvoicePeriod"`
-	StartDate InvoiceDate `xml:"cbc:StartDate"`
-	StartTime InvoiceDate `xml:"cbc:StartTime"`
-	EndDate   InvoiceDate `xml:"cbc:EndDate"`
-	EndTime   InvoiceDate `xml:"cbc:EndTime"`
-}
-
 type DurationMeasureType struct {
 	XMLName  xml.Name `xml:"cbc:DurationMeasure"`
 	UnitCode string   `xml:"unitCode,attr"`
@@ -276,23 +217,26 @@ type PartyIDType struct {
 }
 
 type AccountingSupplierPartyType struct {
-	XMLName             xml.Name  `xml:"cac:AccountingSupplierParty"`
-	AdditionalAccountID IDType    `xml:"cbc:AdditionalAccountID"`
-	Party               PartyType `xml:"cac:Party"`
+	AdditionalAccountID IDType            `xml:"cbc:AdditionalAccountID"`
+	Party               PartySupplierType `xml:"cac:Party"`
 }
 
 type AccountingCustomerPartyType struct {
-	XMLName             xml.Name  `xml:"cac:AccountingCustomerParty"`
-	AdditionalAccountID IDType    `xml:"cbc:AdditionalAccountID"`
-	Party               PartyType `xml:"cac:Party"`
+	AdditionalAccountID IDType            `xml:"cbc:AdditionalAccountID"`
+	Party               PartyCustomerType `xml:"cac:Party"`
 }
 
-type PartyType struct {
+type PartySupplierType struct {
 	PartyName        []PartyNameType      `xml:",omitempty"`
 	PhysicalLocation PhysicalLocationType `xml:",omitempty"`
 	PartyTaxScheme   PartyTaxSchemeType   `xml:",omitempty"`
 	PartyLegalEntity PartyLegalEntityType `xml:",omitempty"`
 	Contact          ContactType          `xml:"cac:Contact,omitempty"`
+}
+
+type PartyCustomerType struct {
+	PartyName        []PartyNameType      `xml:",omitempty"`
+	PhysicalLocation PhysicalLocationType `xml:",omitempty"`
 }
 
 type ContactType struct {
@@ -316,7 +260,6 @@ type PhysicalLocationType struct {
 }
 
 type AddressType struct {
-	XMLName              xml.Name        `xml:"cac:Address"`
 	ID                   string          `xml:"cbc:ID"`
 	CityName             string          `xml:"cbc:CityName"`
 	CountrySubentity     string          `xml:"cbc:CountrySubentity"`
@@ -411,16 +354,6 @@ type TaxCategoryType struct {
 	TaxScheme NameType `xml:"cac:TaxScheme"`
 }
 
-type LegalMonetaryTotalType struct {
-	XMLName              xml.Name   `xml:"cac:LegalMonetaryTotal"`
-	LineExtensionAmount  AmountType `xml:"cbc:LineExtensionAmount"`
-	TaxExclusiveAmount   AmountType `xml:"cbc:TaxExclusiveAmount"`
-	TaxInclusiveAmount   AmountType `xml:"cbc:TaxInclusiveAmount"`
-	AllowanceTotalAmount AmountType `xml:"cbc:AllowanceTotalAmount"`
-	ChargeTotalAmount    AmountType `xml:"cbc:ChargeTotalAmount"`
-	PayableAmount        AmountType `xml:"cbc:PayableAmount"`
-}
-
 type InvoiceLineType struct {
 	XMLName               xml.Name             `xml:"cac:InvoiceLine"`
 	ID                    string               `xml:"cbc:ID"`
@@ -444,7 +377,7 @@ type AlternativeConditionPriceType struct {
 
 type QuantityType struct {
 	UnitCode string  `xml:"unitCode,attr"`
-	Data     float64 `xml:"xml:",chardata""`
+	Data     float64 `xml:",chardata"`
 }
 
 type ItemType struct {

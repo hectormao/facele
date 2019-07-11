@@ -125,8 +125,8 @@ func (cola ColaRepoImpl) terminar() error {
 }
 
 func (cola *ColaRepoImpl) conectar() error {
-
-	conn, err := amqp.Dial(cola.Config.GetUrl())
+	urlRabbit := cola.Config.GetUrl()
+	conn, err := amqp.Dial(urlRabbit)
 	if err != nil {
 		return err
 	}

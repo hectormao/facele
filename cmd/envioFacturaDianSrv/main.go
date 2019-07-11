@@ -36,7 +36,7 @@ func getServicio(config cfg.FaceleConfigType) srv.EnvioFacturaDianSrv {
 	facturaRepo := repo.FacturaRepoImpl{Config: config.MongoConfig}
 	colaRepo := repo.ColaRepoImpl{Config: config.RabbitConfig}
 	translator := trans.FacturaDianTrnsImpl{
-		Config : config.WebServiceDian
+		Config: config.WebServiceDian,
 	}
 	return srvImpl.EnvioFacturaDianSrvImpl{
 		facturaRepo,
