@@ -9,15 +9,15 @@ import (
 	"golang.org/x/crypto/pkcs12"
 )
 
-func FirmarXML(obj interface{}) (*xmlsig.Signature, error) {
+func FirmarXML(obj interface{}, certFile string, password string) (*xmlsig.Signature, error) {
 
-	p12Data, err := ioutil.ReadFile("../../resources/ssl/certificado.p12")
+	p12Data, err := ioutil.ReadFile(certFile)
 
 	if err != nil {
 		return nil, err
 	}
 
-	p12Block, err := pkcs12.ToPEM(p12Data, "Auditoria000")
+	p12Block, err := pkcs12.ToPEM(p12Data, password)
 
 	if err != nil {
 		return nil, err

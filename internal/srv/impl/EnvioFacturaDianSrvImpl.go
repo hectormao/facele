@@ -156,6 +156,8 @@ func (srv EnvioFacturaDianSrvImpl) construirDocumentoElectronico(factura ent.Fac
 		return nil, "", err
 	}
 
+	ioutil.WriteFile("/tmp/archivo_enviar.zip", zipBytes, 0644)
+
 	result := toBase64(zipBytes)
 
 	log.Printf("Result %s", result)

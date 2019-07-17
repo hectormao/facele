@@ -27,7 +27,9 @@ func (trns FacturaDianTrnsImpl) FacturaToInvoice(factura ent.FacturaType) (ent.I
 		return ent.InvoiceType{}, err
 	}
 
-	sign, err := ssl.FirmarXML(invoice)
+	signCert := trns.Config.GetSignCert()
+
+	sign, err := ssl.FirmarXML(invoice, signCert.GetPath(), signCert.GetPassword())
 	if err != nil {
 		return ent.InvoiceType{}, err
 	}

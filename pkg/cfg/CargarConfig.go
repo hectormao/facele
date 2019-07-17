@@ -4,6 +4,7 @@ import (
 	"io/ioutil"
 
 	repo "github.com/hectormao/facele/pkg/repo/cfg"
+	trns "github.com/hectormao/facele/pkg/trns/cfg"
 	"gopkg.in/yaml.v2"
 )
 
@@ -33,12 +34,30 @@ func (cfg RabbitConfigType) GetNotificacionQueue() repo.QueueConfig {
 }
 
 type WebServerDianType struct {
-	Url       string `yaml:"url"`
-	QRCodeUrl string `yaml:"qrcode_url"`
+	Url       string       `yaml:"url"`
+	QRCodeUrl string       `yaml:"qrcode_url"`
+	SignCert  SignCertType `yaml:"sign_cert"`
 }
 
 func (cfg WebServerDianType) GetQRCodeUrl() string {
 	return cfg.QRCodeUrl
+}
+
+func (cfg WebServerDianType) GetSignCert() trns.SignCertConfig {
+	return cfg.SignCert
+}
+
+type SignCertType struct {
+	Path     string `yaml:"path"`
+	Password string `yaml:"password"`
+}
+
+func (cfg SignCertType) GetPath() string {
+	return cfg.Path
+}
+
+func (cfg SignCertType) GetPassword() string {
+	return cfg.Password
 }
 
 type WebServerType struct {

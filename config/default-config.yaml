@@ -5,6 +5,9 @@ webserver:
 webservice_dian:
   url: "https://facturaelectronica.dian.gov.co/habilitacion/B2BIntegrationEngine/FacturaElectronica"
   qrcode_url : "https://muisca.dian.gov.co/WebFacturaelectronica/paginas/VerificarFacturaElectronicaExterno.faces?TipoDocumento={{.CabezaFactura.TipoDocumento}}={{.Resolucion.Prefijo}}{{.Empresa.NumeroDocumento}}NITFacturador={{.Empresa.NumeroDocumento}}NumIdentAdquiriente={{(index .CabezaFactura.ListaAdquirentes 0).NumeroIdentificacion}}Cufe={{.Cufe}}"
+  sign_cert :
+    path : "../../resources/ssl/certificado.p12"
+    password : "Auditoria000"
 mongo_config:
 #  url: "mongodb://root:yTRyg0Zm11@172.17.0.7:27017/?authSource=admin"
   url: "mongodb://172.17.0.3:27017/"
