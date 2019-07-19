@@ -2,6 +2,7 @@ package soap
 
 import (
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/xml"
 	"fmt"
 	"time"
@@ -56,7 +57,8 @@ func NewWSSSecurityHeader(user string, pass string, nonce string, created time.T
 	encryptedPass := fmt.Sprintf("%x", crypt.Sum(nil))
 
 	hdr.Token.Password = &soap.WSSPassword{XmlNSWsse: soap.WssNsWSSE, XmlNSType: soap.WssNsType, Data: encryptedPass}
-	hdr.Token.Nonce = &WSSNonce{XmlNSWsse: soap.WssNsWSSE, Data: nonce}
+	encodedNonce := base64.StdEncoding.EncodeToString([]byte(nonce))
+	hdr.Token.Nonce = &WSSNonce{XmlNSWsse: soap.WssNsWSSE, Data: encodedNonce}
 	hdr.Token.Created = &WSSCreated{XmlNSWsu: soap.WssNsWSU, Data: created}
 	return hdr
 }

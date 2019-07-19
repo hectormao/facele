@@ -3,7 +3,7 @@ webserver:
   path: /cargarFactura
   method: POST
 webservice_dian:
-  url: "https://facturaelectronica.dian.gov.co/habilitacion/B2BIntegrationEngine/FacturaElectronica"
+  url: "https://facturaelectronica.dian.gov.co/habilitacion/B2BIntegrationEngine/FacturaElectronica/facturaElectronica.wsdl"
   qrcode_url : "https://muisca.dian.gov.co/WebFacturaelectronica/paginas/VerificarFacturaElectronicaExterno.faces?TipoDocumento={{.CabezaFactura.TipoDocumento}}={{.Resolucion.Prefijo}}{{.Empresa.NumeroDocumento}}NITFacturador={{.Empresa.NumeroDocumento}}NumIdentAdquiriente={{(index .CabezaFactura.ListaAdquirentes 0).NumeroIdentificacion}}Cufe={{.Cufe}}"
   sign_cert :
     path : "../../resources/ssl/certificado.p12"

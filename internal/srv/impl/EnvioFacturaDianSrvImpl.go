@@ -79,11 +79,11 @@ func (srv EnvioFacturaDianSrvImpl) IniciarConsumidorCola() error {
 			factura.Empresa.SoftwareFacturacion.Id,
 			factura.Empresa.SoftwareFacturacion.Password,
 			u1.String(),
-			time.Now(),
+			time.Now().UTC(),
 			"",
 		)
 
-		log.Printf("Security Header: %v", securityHeader)
+		log.Printf("Security Header: %v", *securityHeader)
 
 		client.AddHeader(securityHeader)
 
